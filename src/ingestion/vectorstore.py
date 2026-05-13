@@ -60,36 +60,48 @@ class VectorStoreManager:
         self.collection_name = settings.CHROMA_COLLECTION
         self._vectorstore: Optional[Chroma] = None
 
+    # ChromaDB refuse les batches > 5461 items (limite interne SQLite)
+    CHROMA_BATCH_SIZE = 5000
+
     def build(self, chunks: List[Document]) -> Chroma:
         """
-        Indexe les chunks dans ChromaDB.
-        À appeler une seule fois lors de la création initiale
-        ou lors d'une mise à jour complète de la base.
+        Indexe les chunks dans ChromaDB par batches de 5000.
 
-        ⚠️  Cette opération écrase la collection existante.
+        ChromaDB 0.5.x limite les upserts à 5461 items par appel.
+        On crée la collection avec le premier batch, puis on ajoute les suivants.
         """
         if not chunks:
             raise ValueError("Aucun chunk à indexer. Vérifier le dossier data/docs/")
 
-        # Déduplication systématique avant indexation pour éviter les doublons
-        # en cas de documents réindexés plusieurs fois.
         before_dedup = len(chunks)
         chunks = deduplicate_chunks(chunks, similarity_threshold=0.92)
         removed = before_dedup - len(chunks)
         if removed > 0:
             logger.info(f"Déduplication build(): {removed} chunk(s) supprimé(s)")
 
-        logger.info(f"Indexation de {len(chunks)} chunks dans ChromaDB...")
+        total = len(chunks)
+        n_batches = (total + self.CHROMA_BATCH_SIZE - 1) // self.CHROMA_BATCH_SIZE
+        logger.info(f"Indexation de {total} chunks en {n_batches} batch(es) dans ChromaDB...")
 
+        # Premier batch : crée la collection
+        first_batch = chunks[:self.CHROMA_BATCH_SIZE]
         self._vectorstore = Chroma.from_documents(
-            documents=chunks,
+            documents=first_batch,
             embedding=self.embedding_model,
             persist_directory=self.persist_dir,
             collection_name=self.collection_name,
         )
+        logger.info(f"  Batch 1/{n_batches} : {len(first_batch)} chunks indexés")
+
+        # Batches suivants : ajout incrémental
+        for i in range(1, n_batches):
+            start = i * self.CHROMA_BATCH_SIZE
+            batch = chunks[start:start + self.CHROMA_BATCH_SIZE]
+            self._vectorstore.add_documents(batch)
+            logger.info(f"  Batch {i+1}/{n_batches} : {len(batch)} chunks indexés")
 
         count = self._vectorstore._collection.count()
-        logger.info(f"Base vectorielle créée : {count} vecteurs stockés dans {self.persist_dir}")
+        logger.info(f"Base vectorielle créée : {count} vecteurs dans {self.persist_dir}")
         return self._vectorstore
 
     def load(self) -> Chroma:
