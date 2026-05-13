@@ -11,8 +11,11 @@
 #   4. Code source (change souvent)
 
 # ── Étape 1 : image de base ───────────────────────────────────────────────────
-# python:3.11-slim = Python 3.11 sur Debian minimal (~130 MB vs ~900 MB pour python:3.11)
-FROM python:3.11-slim
+# python:3.12-slim = Python 3.12 sur Debian minimal (~130 MB vs ~900 MB pour python:3.12)
+# Pourquoi 3.12 ? C'est la version installée dans le venv du projet (3.12.9).
+# requirements.txt confirme : "Compatible Python 3.11 / 3.12 / 3.13".
+# 3.12 est le bon choix : plus récent que 3.11, plus stable que 3.13 (sorti oct 2024).
+FROM python:3.12-slim
 
 # Métadonnées de l'image
 LABEL maintainer="tellofall@gmail.com"
