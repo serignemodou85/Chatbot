@@ -1,0 +1,45 @@
+# ── Secrets ──────────────────────────────────────────────────────────────────
+.env
+
+# ── Données volumineuses (utiliser Git LFS si versionnement nécessaire) ──────
+data/chroma_db/
+data/embedding_cache/
+data/feedback/
+data/eval/last_report.json
+
+# Documents source (ajouter manuellement ou via DVC si voulu)
+data/docs/
+
+# ── Python ───────────────────────────────────────────────────────────────────
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+.eggs/
+*.egg
+pip-wheel-metadata/
+
+# ── Tests & Coverage ─────────────────────────────────────────────────────────
+.pytest_cache/
+.coverage
+htmlcov/
+
+# ── Logs ─────────────────────────────────────────────────────────────────────
+logs/
+*.log
+
+# ── IDE ──────────────────────────────────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# ── Docker ───────────────────────────────────────────────────────────────────
+# (les images et volumes sont gérés par Docker, pas Git)

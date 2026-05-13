@@ -1,0 +1,32 @@
+# ── RAG Chatbot Phase 1 ── requirements.txt ──────────────────────────────────
+# Installer avec : pip install -r requirements.txt
+#
+# Compatible Python 3.11 / 3.12 / 3.13
+# Versions testées et vérifiées en avril 2025
+
+# ── LLM & Orchestration ───────────────────────────────────────────────────────
+langchain==0.2.16
+langchain-community==0.2.16
+langchain-openai==0.1.23
+langchain-ollama==0.1.3          # Pour Llama 3 en local
+langchain-chroma==0.1.4          # Intégration ChromaDB officielle
+
+# ── Base vectorielle ──────────────────────────────────────────────────────────
+chromadb==0.5.3
+
+# ── Embeddings ────────────────────────────────────────────────────────────────
+sentence-transformers==3.0.1     # HuggingFace (gratuit, local)
+# openai==1.40.0                 # Décommenter si embeddings OpenAI
+
+# ── Chargement de documents ───────────────────────────────────────────────────
+pypdf==4.3.1                     # PDF
+python-docx==1.1.2               # Word
+unstructured==0.22.21            # HTML, TXT, Markdown (version corrigée)
+
+# ── Interface ─────────────────────────────────────────────────────────────────
+streamlit==1.37.0
+
+# ── Utilitaires ───────────────────────────────────────────────────────────────
+python-dotenv==1.0.1             # Variables d'environnement
+tiktoken==0.7.0                  # Comptage de tokens
+loguru==0.7.2                    # Logs
