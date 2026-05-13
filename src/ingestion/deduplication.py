@@ -58,26 +58,37 @@ def find_duplicate_ids(
     return duplicate_ids
 
 
+MAX_CHUNKS_FOR_DEDUP = 3000
+
+
 def deduplicate_chunks(
     chunks: Iterable[Document],
     similarity_threshold: float = 0.92,
 ) -> List[Document]:
     """
     Remove near-identical chunks while preserving original order.
+
+    Auto-skip si le corpus dépasse MAX_CHUNKS_FOR_DEDUP (3000) :
+    SequenceMatcher est O(n²) dans les buckets — au-delà de 3000 chunks
+    le temps de calcul devient prohibitif (>30 min sur CPU).
+    Utiliser deduplicate_chroma.py en post-traitement dans ce cas.
     """
-    kept: List[Document] = []
+    chunk_list = list(chunks)
+
+    if len(chunk_list) > MAX_CHUNKS_FOR_DEDUP:
+        return chunk_list
+
     texts_by_id: Dict[str, str] = {}
     index_to_doc: Dict[str, Document] = {}
 
-    for idx, chunk in enumerate(chunks):
+    for idx, chunk in enumerate(chunk_list):
         item_id = f"chunk-{idx}"
         texts_by_id[item_id] = chunk.page_content
         index_to_doc[item_id] = chunk
 
     to_drop = set(find_duplicate_ids(texts_by_id, similarity_threshold=similarity_threshold))
-    for idx in range(len(texts_by_id)):
-        item_id = f"chunk-{idx}"
-        if item_id not in to_drop:
-            kept.append(index_to_doc[item_id])
-
-    return kept
+    return [
+        index_to_doc[f"chunk-{idx}"]
+        for idx in range(len(texts_by_id))
+        if f"chunk-{idx}" not in to_drop
+    ]
