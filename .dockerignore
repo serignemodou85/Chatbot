@@ -1,0 +1,35 @@
+# Ne pas copier dans l'image Docker
+
+# Données volumineuses (montées via volumes)
+data/
+
+# Environnement Python local
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+
+# Secrets
+.env
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# Tests (pas nécessaires en prod)
+tests/
+
+# Logs locaux
+logs/
+*.log
+
+# IDE
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Cours et docs de dev
+cours.md

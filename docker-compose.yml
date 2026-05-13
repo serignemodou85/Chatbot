@@ -1,0 +1,97 @@
+# ── docker-compose.yml ────────────────────────────────────────────────────────
+# Orchestre les services du RAG Chatbot.
+#
+# Services :
+#   app     → Streamlit (interface + pipeline RAG)
+#   ollama  → Llama 3 en local (optionnel, si LLM_PROVIDER=ollama dans .env)
+#
+# Lancement rapide :
+#   docker compose up -d              # démarrer en arrière-plan
+#   docker compose logs -f app        # voir les logs en temps réel
+#   docker compose down               # arrêter et supprimer les containers
+#
+# Premier lancement avec Ollama :
+#   docker compose up -d ollama
+#   docker compose exec ollama ollama pull llama3   # télécharger le modèle
+#   docker compose up -d app
+
+version: "3.9"
+
+services:
+
+  # ── Application Streamlit ───────────────────────────────────────────────────
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: rag-chatbot-app
+    ports:
+      - "8501:8501"       # Accès : http://localhost:8501
+    env_file:
+      - .env              # Charge LLM_PROVIDER, OPENAI_API_KEY, etc.
+    environment:
+      # Surcharge l'URL Ollama pour pointer vers le service ollama du compose
+      OLLAMA_BASE_URL: http://ollama:11434
+    volumes:
+      # Données persistantes sur ta machine (pas dans le container)
+      # Syntaxe : chemin_local:chemin_container
+      - ./data/docs:/app/data/docs                        # documents source
+      - ./data/chroma_db:/app/data/chroma_db              # base vectorielle
+      - ./data/embedding_cache:/app/data/embedding_cache  # modèle HuggingFace
+      - ./data/feedback:/app/data/feedback                # feedbacks utilisateurs
+      - ./data/eval:/app/data/eval                        # résultats évaluation
+      - ./logs:/app/logs                                  # logs applicatifs
+    depends_on:
+      ollama:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c",
+             "import urllib.request; urllib.request.urlopen('http://localhost:8501/_stcore/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 90s
+
+  # ── Ollama — LLM local (Llama 3) ────────────────────────────────────────────
+  # Optionnel : commenter ce service si tu utilises OpenAI (LLM_PROVIDER=openai)
+  ollama:
+    image: ollama/ollama:latest
+    container_name: rag-ollama
+    ports:
+      - "11434:11434"     # API Ollama accessible depuis ta machine
+    volumes:
+      # Les modèles sont téléchargés une seule fois et persistés ici
+      - ollama_models:/root/.ollama
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+  # ── Service d'indexation (one-shot, ne reste pas actif) ───────────────────
+  # Lance l'indexation initiale des documents puis s'arrête.
+  # Usage : docker compose run --rm indexer
+  indexer:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: rag-indexer
+    command: ["python", "scripts/build_index.py"]
+    env_file:
+      - .env
+    volumes:
+      - ./data/docs:/app/data/docs
+      - ./data/chroma_db:/app/data/chroma_db
+      - ./data/embedding_cache:/app/data/embedding_cache
+    profiles:
+      - tools     # Ne démarre pas avec `docker compose up`, seulement avec --profile tools
+
+# ── Volumes nommés ───────────────────────────────────────────────────────────
+# Les volumes nommés sont gérés par Docker (pas un dossier sur ta machine)
+# Ils persistent même si tu fais `docker compose down`
+volumes:
+  ollama_models:
+    name: rag-ollama-models
