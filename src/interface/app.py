@@ -24,6 +24,23 @@ from loguru import logger
 from src.retrieval.rag_chain import RAGChain
 
 FEEDBACK_FILE = Path("data/feedback/user_feedback.json")
+SESSION_FILE = Path("data/session/chat_history.json")
+
+
+def _save_session(messages: list):
+    SESSION_FILE.parent.mkdir(parents=True, exist_ok=True)
+    with SESSION_FILE.open("w", encoding="utf-8") as f:
+        json.dump(messages, f, ensure_ascii=False, indent=2)
+
+
+def _load_session() -> list:
+    if not SESSION_FILE.exists():
+        return []
+    try:
+        with SESSION_FILE.open("r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:
+        return []
 
 
 def _load_feedback_entries():
@@ -88,6 +105,7 @@ with st.sidebar:
     # Bouton de reset de la conversation
     if st.button("🗑️ Nouvelle conversation", use_container_width=True):
         st.session_state.messages = []
+        SESSION_FILE.unlink(missing_ok=True)
         try:
             st.session_state.rag_chain.reset_memory()
         except Exception:
@@ -109,23 +127,25 @@ with st.sidebar:
 st.title("🛡️ CyberSec RAG Chatbot")
 st.caption("Assistant IA spécialisé en cybersécurité, réseau et administration système")
 
-# Initialiser l'historique des messages dans la session Streamlit
+# Initialiser l'historique — récupérer depuis le fichier si dispo (survie à la veille)
 if "messages" not in st.session_state:
-    st.session_state.messages = []
-    # Message d'accueil
-    st.session_state.messages.append({
-        "role": "assistant",
-        "content": (
-            "Bonjour ! Je suis votre assistant cybersécurité.\n\n"
-            "Je peux vous aider sur :\n"
-            "-  Configuration de pare-feux et VPN\n"
-            "-  Supervision avec Zabbix et Wazuh\n"
-            "-  Administration Linux / Windows Server\n"
-            "-  Analyse de logs et détection d'incidents\n\n"
-            "Quelle est votre question ?"
-        ),
-        "sources": [],
-    })
+    saved = _load_session()
+    if saved:
+        st.session_state.messages = saved
+    else:
+        st.session_state.messages = [{
+            "role": "assistant",
+            "content": (
+                "Bonjour ! Je suis votre assistant cybersécurité.\n\n"
+                "Je peux vous aider sur :\n"
+                "-  Configuration de pare-feux et VPN\n"
+                "-  Supervision avec Zabbix et Wazuh\n"
+                "-  Administration Linux / Windows Server\n"
+                "-  Analyse de logs et détection d'incidents\n\n"
+                "Quelle est votre question ?"
+            ),
+            "sources": [],
+        }]
 
 # Stocker la chain dans la session pour pouvoir reset la mémoire
 if "rag_chain" not in st.session_state:
@@ -225,9 +245,10 @@ if question := st.chat_input("Posez votre question sur la cybersécurité..."):
                     st.caption(f"_{src['excerpt']}_")
                     st.divider()
 
-    # Sauvegarder la réponse dans l'historique
+    # Sauvegarder la réponse dans l'historique + persistance sur disque
     st.session_state.messages.append({
         "role": "assistant",
         "content": answer,
         "sources": sources,
     })
+    _save_session(st.session_state.messages)
