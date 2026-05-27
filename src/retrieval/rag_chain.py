@@ -159,6 +159,29 @@ class RAGChain:
         self.memory.clear()
         logger.info("Mémoire de conversation effacée.")
 
+    def restore_memory(self, messages: list, k: int = 5):
+        """
+        Reconstruit la mémoire depuis un historique JSON sauvegardé.
+        Rejoue les k dernières paires user/assistant dans l'objet mémoire.
+        Appelé quand on recharge une conversation existante.
+        """
+        self.memory.clear()
+        pairs = []
+        pending_user = None
+        for msg in messages:
+            if msg.get("role") == "user":
+                pending_user = msg.get("content", "")
+            elif msg.get("role") == "assistant" and pending_user is not None:
+                pairs.append((pending_user, msg.get("content", "")))
+                pending_user = None
+
+        for user_text, assistant_text in pairs[-k:]:
+            self.memory.chat_memory.add_user_message(user_text)
+            self.memory.chat_memory.add_ai_message(assistant_text)
+
+        if pairs:
+            logger.info(f"Mémoire restaurée : {min(len(pairs), k)} échange(s) rechargé(s)")
+
     @staticmethod
     def _build_mode_instruction(user_mode: str) -> str:
         """Construit une consigne de style selon le mode sélectionné dans l'UI."""
