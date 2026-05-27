@@ -9,6 +9,7 @@
 
 import sys
 import argparse
+import sqlite3
 import time
 from pathlib import Path
 
@@ -20,6 +21,22 @@ from config.settings import settings
 from src.ingestion.document_loader import DocumentLoader
 from src.ingestion.deduplication import deduplicate_chunks
 from src.ingestion.vectorstore import VectorStoreManager
+
+
+def _fix_chromadb_schema(persist_dir: str):
+    """Ajoute la colonne 'topic' manquante après chaque build (bug ChromaDB 0.4.24)."""
+    db_path = Path(persist_dir) / "chroma.sqlite3"
+    if not db_path.exists():
+        return
+    con = sqlite3.connect(str(db_path))
+    cur = con.cursor()
+    for table in ("collections", "segments"):
+        cols = [r[1] for r in cur.execute(f"PRAGMA table_info({table})").fetchall()]
+        if "topic" not in cols:
+            cur.execute(f"ALTER TABLE {table} ADD COLUMN topic TEXT")
+            logger.debug(f"ChromaDB schema fix : colonne 'topic' ajoutée à {table}")
+    con.commit()
+    con.close()
 
 
 def main():
@@ -89,6 +106,10 @@ def main():
 
     vs_manager = VectorStoreManager()
     vs_manager.build(chunks)
+
+    # ChromaDB 0.4.24 bug : migration 5 supprime 'topic' mais le code le requête encore.
+    # On le réajoute après chaque build pour éviter l'erreur au chargement.
+    _fix_chromadb_schema(settings.CHROMA_PERSIST_DIR)
 
     elapsed = time.time() - start
     logger.info("-" * 60)
