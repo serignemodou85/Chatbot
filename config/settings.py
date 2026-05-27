@@ -16,6 +16,9 @@ class Settings:
     OPENAI_API_KEY: str    = os.getenv("OPENAI_API_KEY", "")
     OLLAMA_BASE_URL: str   = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
 
+    # ── Phase 2 — CrewAI ─────────────────────────────────────────────────────
+    CREW_LLM_MODEL: str = os.getenv("CREW_LLM_MODEL", "llama3")
+
     # ── Embeddings ────────────────────────────────────────────────────────────
     EMBEDDING_PROVIDER: str = os.getenv("EMBEDDING_PROVIDER", "huggingface")
     EMBEDDING_MODEL: str    = os.getenv(

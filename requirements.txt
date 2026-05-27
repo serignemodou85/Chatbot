@@ -1,4 +1,4 @@
-# ── RAG Chatbot Phase 1 ── requirements.txt ──────────────────────────────────
+# ── RAG Chatbot Phase 1 + 2 ── requirements.txt ──────────────────────────────
 # Installer avec : pip install -r requirements.txt
 #
 # Compatible Python 3.11 / 3.12 / 3.13
@@ -30,3 +30,6 @@ streamlit==1.37.0
 python-dotenv==1.0.1             # Variables d'environnement
 tiktoken==0.7.0                  # Comptage de tokens
 loguru==0.7.2                    # Logs
+
+# ── Phase 2 — Agents CrewAI ───────────────────────────────────────────────────
+crewai==0.28.8                   # Multi-agents (compatible langchain 0.2.x)
