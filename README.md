@@ -1,7 +1,9 @@
-# CyberSec RAG Chatbot — Phase 1
+# CyberSec RAG Chatbot — Phase 1 + 2
 
 Chatbot IA spécialisé en cybersécurité, infrastructure réseau et administration système.
-Architecture RAG (Retrieval-Augmented Generation) : LangChain + ChromaDB + Llama 3 (ou GPT-4o) + Streamlit.
+
+- **Phase 1** — RAG conversationnel : LangChain + ChromaDB + phi3:mini + Streamlit
+- **Phase 2** — Multi-agents : CrewAI avec 4 agents spécialisés (Doc, Réseau, Sécurité, Rapport)
 
 ---
 
@@ -12,11 +14,12 @@ Architecture RAG (Retrieval-Augmented Generation) : LangChain + ChromaDB + Llama
 3. [Configuration (.env)](#3-configuration-env)
 4. [Indexer les documents](#4-indexer-les-documents)
 5. [Lancer le chatbot](#5-lancer-le-chatbot)
-6. [Lancer avec Docker](#6-lancer-avec-docker)
-7. [Tests et évaluation](#7-tests-et-évaluation)
-8. [Maintenance](#8-maintenance)
-9. [Structure du projet](#9-structure-du-projet)
-10. [Résolution de problèmes](#10-résolution-de-problèmes)
+6. [Phase 2 — Agents CrewAI](#6-phase-2--agents-crewai)
+7. [Lancer avec Docker](#7-lancer-avec-docker)
+8. [Tests et évaluation](#8-tests-et-évaluation)
+9. [Maintenance](#9-maintenance)
+10. [Structure du projet](#10-structure-du-projet)
+11. [Résolution de problèmes](#11-résolution-de-problèmes)
 
 ---
 
@@ -99,13 +102,16 @@ copy .env.example .env
 Ouvrir `.env` et vérifier/ajuster :
 
 ```ini
-# ── LLM ──────────────────────────────────────────────────────────────────────
+# ── LLM Phase 1 — RAG Chat ────────────────────────────────────────────────────
 LLM_PROVIDER=ollama          # "ollama" (local gratuit) ou "openai" (payant)
-LLM_MODEL=llama3             # "llama3" si Ollama, "gpt-4o" si OpenAI
+LLM_MODEL=phi3:mini          # phi3:mini = 3.8B, rapide (~30s) ; llama3 = 8B, qualité max
 LLM_TEMPERATURE=0.1          # 0=déterministe, 1=créatif
 
 OPENAI_API_KEY=              # Laisser vide si Ollama
 OLLAMA_BASE_URL=http://localhost:11434
+
+# ── LLM Phase 2 — Agents CrewAI ──────────────────────────────────────────────
+CREW_LLM_MODEL=llama3        # llama3 (8B) pour les agents — meilleur suivi d'instructions
 
 # ── Embeddings ────────────────────────────────────────────────────────────────
 EMBEDDING_PROVIDER=huggingface              # Local, gratuit, aucune clé requise
@@ -189,20 +195,20 @@ Ouvrir **http://localhost:8501** dans le navigateur.
 ### Interface
 
 ```
-┌──────────────────────────────────────────────────┐
-│ SIDEBAR                │ CHAT                    │
-│                        │                         │
-│ Mode utilisateur :     │ 🛡️ CyberSec RAG Chatbot │
-│  🎓 Étudiant           │                         │
-│  🖥️ Admin système      │ [Historique messages]   │
-│  🔒 Pro cybersécurité  │                         │
-│                        │ [Sources utilisées]     │
-│ [Nouvelle conv.]       │                         │
-│                        │ [👍 Utile / 👎 À amélio.]│
-│ Base documentaire :    │                         │
-│  Wazuh · Zabbix        │ [ Posez votre question ]│
-│  Dolibarr · Ubuntu     │                         │
-└──────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────┐
+│ SIDEBAR                │ 🛡️ CyberSec RAG Chatbot             │
+│                        │                                      │
+│ Mode utilisateur :     │ ┌─ 💬 Chat RAG ─┬─ 🤖 Agents Ph.2 ─┐│
+│  🎓 Étudiant           │ │               │                  ││
+│  🖥️ Admin système      │ │ [Historique]  │  [Zone de texte] ││
+│  🔒 Pro cybersécurité  │ │ [Sources]     │  [Lancer analyse]││
+│                        │ │ [👍 / 👎]     │  [Rapport final] ││
+│ [Nouvelle conv.]       │ │               │                  ││
+│                        │ │ [Saisie...]   │                  ││
+│ Base documentaire :    │ └───────────────┴──────────────────┘│
+│  Wazuh · Zabbix        │                                      │
+│  Dolibarr · Ubuntu     │                                      │
+└──────────────────────────────────────────────────────────────┘
 ```
 
 ### Exemples de questions à poser
@@ -226,7 +232,93 @@ Ouvrir **http://localhost:8501** dans le navigateur.
 
 ---
 
-## 6. Lancer avec Docker
+## 6. Phase 2 — Agents CrewAI
+
+La Phase 2 ajoute un onglet **🤖 Agents** dans l'interface Streamlit.
+Plusieurs agents spécialisés collaborent pour répondre à des questions complexes.
+
+### Architecture
+
+```
+Question complexe
+       │
+       ▼
+_classify(question)          ← Python, pas de LLM
+       │
+  ┌────┴────┐
+  ▼         ▼
+network?  security?  doc?    ← mots-clés (_NETWORK_KW, _SECURITY_KW)
+  │         │         │
+  ▼         ▼         ▼
+Agent     Agent     Agent    ← chacun cherche dans ChromaDB (filtré par domaine)
+Réseau   Sécurité   Doc
+  │         │         │
+  └────┬────┘─────────┘
+       ▼
+  Agent Rapport              ← synthèse + formatage Markdown
+       │
+       ▼
+  Rapport final structuré
+```
+
+### Les 4 agents
+
+| Agent | Rôle | Outil ChromaDB |
+|-------|------|----------------|
+| 🗂️ Documentation | Recherche générale | Tous les docs, k=5 |
+| 🌐 Réseau | VPN, pare-feu, pfSense | Filtrage par mots-clés source |
+| 🔐 Sécurité | Wazuh, Zabbix, SIEM | Filtrage par mots-clés source |
+| 📝 Rapport | Synthèse + mise en forme | Aucun (LLM seul) |
+
+### Tester les agents en CLI
+
+```powershell
+venv\Scripts\activate
+$env:PYTHONPATH = "."
+$env:PYTHONIOENCODING = "utf-8"   # nécessaire sur Windows pour les logs crewaI
+
+# Tester le routage uniquement (rapide)
+python scripts/run_crew.py --classify-only --question "Compare Wazuh et Zabbix"
+# Sortie : Routage : ['security']
+
+# Lancer un crew complet (~5-8 min avec llama3)
+python scripts/run_crew.py --question "Compare Wazuh et Zabbix" --mode admin
+
+# Options
+python scripts/run_crew.py --mode etudiant    # etudiant | admin | pro
+python scripts/run_crew.py --mode pro --question "Analyse CVE Zabbix 2024"
+```
+
+### Utiliser l'onglet Agents dans l'UI
+
+1. Démarrer Streamlit : `streamlit run src/interface/app.py`
+2. Cliquer sur l'onglet **🤖 Agents — Phase 2**
+3. Saisir une question complexe dans la zone de texte
+4. Cliquer **🚀 Lancer l'analyse** — les agents travaillent (~5-8 min)
+5. Le rapport Markdown s'affiche sous les métriques (agents utilisés, domaines)
+
+### Exemples de questions pour les agents
+
+```
+🌐 Réseau uniquement :
+  "Comment configurer un VPN site-à-site avec pfSense ?"
+  "Explique les VLANs et leur utilité dans un réseau d'entreprise"
+
+🔐 Sécurité uniquement :
+  "Quels sont les indicateurs de compromission à surveiller avec Wazuh ?"
+  "Configure les alertes Zabbix pour détecter une charge CPU anormale"
+
+🌐🔐 Réseau + Sécurité :
+  "Compare Wazuh et Zabbix pour superviser 50 machines"
+  "Quels sont les risques d'un serveur Ubuntu sans pare-feu ?"
+
+🗂️ Documentation générale :
+  "Comment créer un utilisateur admin dans Dolibarr ?"
+```
+
+---
+
+## 7. Lancer avec Docker
 
 Docker empaquette tout (Python, dépendances, code) dans une image portable.
 
@@ -292,7 +384,7 @@ docker compose up -d app
 
 ---
 
-## 7. Tests et évaluation
+## 8. Tests et évaluation
 
 ### Tests automatisés (unitaires + intégration)
 
@@ -355,7 +447,7 @@ python scripts/evaluate_rag.py --mode "🔒 Pro cybersécurité" --verbose
 
 ---
 
-## 8. Maintenance
+## 9. Maintenance
 
 ### Ajouter de nouveaux documents
 
@@ -392,7 +484,7 @@ python scripts/build_index.py --reset
 
 ---
 
-## 9. Structure du projet
+## 10. Structure du projet
 
 ```
 rag_chatbot/
@@ -402,28 +494,35 @@ rag_chatbot/
 ├── .gitattributes          ← Normalise LF/CRLF
 ├── Dockerfile              ← Image Docker Python 3.12
 ├── docker-compose.yml      ← Services : app + ollama + indexer
-├── requirements.txt        ← Dépendances Python
+├── requirements.txt        ← Dépendances Python (Phase 1 + 2)
 ├── cours.md                ← Guide d'apprentissage de la stack
 │
 ├── config/
-│   └── settings.py         ← Chargement centralisé du .env
+│   └── settings.py         ← Chargement centralisé du .env (incl. CREW_LLM_MODEL)
 │
 ├── src/
 │   ├── ingestion/
 │   │   ├── document_loader.py  ← Chunking hiérarchique + récursif
-│   │   ├── vectorstore.py      ← Gestion ChromaDB
+│   │   ├── vectorstore.py      ← Gestion ChromaDB (batch 5000, 11490 vecteurs)
 │   │   └── deduplication.py    ← Anti-doublons (seuil 0.92)
 │   ├── llm/
 │   │   └── llm_factory.py      ← Factory OpenAI / Ollama
 │   ├── retrieval/
-│   │   └── rag_chain.py        ← Pipeline RAG conversationnel
+│   │   └── rag_chain.py        ← Pipeline RAG conversationnel (phi3:mini)
+│   ├── agents/                 ← Phase 2 — Multi-agents CrewAI
+│   │   ├── tools/
+│   │   │   └── rag_tools.py    ← 3 outils ChromaDB (doc / réseau / sécurité)
+│   │   ├── agents.py           ← 4 factory : doc / network / security / report
+│   │   ├── tasks.py            ← make_research_task + make_report_task
+│   │   └── crew.py             ← _classify() + CyberSecCrew.run()
 │   └── interface/
-│       └── app.py              ← Interface Streamlit
+│       └── app.py              ← Streamlit : onglet Chat + onglet Agents
 │
 ├── scripts/
 │   ├── build_index.py          ← Indexation initiale
 │   ├── deduplicate_chroma.py   ← Nettoyage doublons
-│   └── evaluate_rag.py         ← Évaluation qualité
+│   ├── evaluate_rag.py         ← Évaluation qualité Phase 1
+│   └── run_crew.py             ← Test CLI du crew Phase 2
 │
 ├── tests/
 │   ├── test_pipeline.py        ← Tests intégration pipeline
@@ -431,15 +530,16 @@ rag_chatbot/
 │
 └── data/                       ← Ignoré par git
     ├── docs/                   ← Documents source (PDFs...)
-    ├── chroma_db/              ← Base vectorielle (générée)
-    ├── embedding_cache/        ← Modèle HuggingFace (cache)
+    ├── chroma_db/              ← Base vectorielle (11490 vecteurs)
+    ├── embedding_cache/        ← Modèle HuggingFace (cache local)
     ├── feedback/               ← Feedbacks utilisateurs (JSON)
+    ├── session/                ← Historique conversation (JSON, survie à la veille)
     └── eval/                   ← Rapports d'évaluation
 ```
 
 ---
 
-## 10. Résolution de problèmes
+## 11. Résolution de problèmes
 
 ### `ollama` non reconnu dans PowerShell
 
@@ -533,21 +633,58 @@ print('Chunks:', vs._vectorstore._collection.count())
 
 ---
 
+### ChromaDB — `sqlite3.OperationalError: no such column: collections.topic`
+
+La base a été créée avec une version ancienne de ChromaDB mais le code 0.4.24 requiert la colonne `topic`.
+
+```powershell
+# Corriger le schéma (à faire une seule fois après cet erreur)
+$env:PYTHONPATH = "."
+venv\Scripts\python scripts/_fix_chroma_schema.py
+```
+
+### Agents CrewAI — `UnicodeEncodeError` dans le terminal
+
+Les logs crewAI contiennent des caractères UTF-8 que la console Windows (cp1252) ne supporte pas.
+Ce problème n'affecte **pas** l'interface Streamlit.
+
+```powershell
+# Pour les tests CLI — forcer UTF-8
+$env:PYTHONIOENCODING = "utf-8"
+python scripts/run_crew.py --question "..."
+```
+
+### Agents CrewAI — réponse lente (~5-8 min)
+
+Normal : llama3 (8B) génère lentement sur CPU. Pour accélérer :
+```ini
+# .env — utiliser phi3:mini aussi pour les agents (moins bonne qualité mais 3x plus rapide)
+CREW_LLM_MODEL=phi3:mini
+```
+
+---
+
 ## Versions vérifiées
 
 | Composant | Version |
 |-----------|---------|
 | Python | 3.12.9 |
-| langchain | 0.2.16 |
-| chromadb | 0.5.3 |
+| langchain | 0.1.20 |
+| langchain-core | 0.1.53 |
+| chromadb | 0.4.24 |
+| crewai | 0.28.8 |
 | sentence-transformers | 3.0.1 |
 | streamlit | 1.37.0 |
 | Ollama | 0.23.3 |
 | Docker | 29.3.0 |
 
+> **Contrainte de compatibilité** : crewai 0.28.8 est la dernière version compatible avec langchain 0.1.x.
+> crewai ≥ 0.51 requiert langchain ≥ 0.3 (upgrade majeur, non prévu en Phase 2).
+
 ---
 
-## Prochaines étapes
+## Roadmap
 
-- **Phase 2** : Agents spécialisés CrewAI (Documentation, Réseau, Sécurité, Rapport)
-- **Phase 3** : Audit automatisé (Nmap, OWASP ZAP, MobSF) + rapports automatiques
+- ~~**Phase 1**~~ ✅ RAG Chat (LangChain + ChromaDB + phi3:mini + Streamlit)
+- ~~**Phase 2**~~ ✅ Agents spécialisés CrewAI (Doc, Réseau, Sécurité, Rapport)
+- **Phase 3** — Audit automatisé (Nmap, OWASP ZAP, MobSF) + rapports automatiques
