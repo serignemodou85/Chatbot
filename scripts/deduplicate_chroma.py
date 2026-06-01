@@ -74,6 +74,15 @@ def main():
         logger.info("Mode dry-run: aucune suppression effectuee.")
         return
 
+    confirm = input(
+        f"\n⚠️  Suppression de {len(duplicate_ids)} chunks sur {len(ids)} "
+        f"({len(duplicate_ids)/len(ids):.0%} de la base).\n"
+        "Taper 'OUI' pour confirmer : "
+    ).strip()
+    if confirm != "OUI":
+        logger.info("Opération annulée.")
+        return
+
     collection.delete(ids=duplicate_ids)
     remaining = collection.count()
     logger.success(

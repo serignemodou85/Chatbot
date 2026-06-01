@@ -43,7 +43,7 @@ def get_llm() -> BaseChatModel:
         )
 
     if provider == "ollama":
-        from langchain_ollama import ChatOllama
+        from langchain_community.chat_models import ChatOllama
 
         logger.info(f"LLM : Ollama {settings.LLM_MODEL} ({settings.OLLAMA_BASE_URL})")
         return ChatOllama(

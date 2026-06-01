@@ -76,6 +76,11 @@ def deduplicate_chunks(
     chunk_list = list(chunks)
 
     if len(chunk_list) > MAX_CHUNKS_FOR_DEDUP:
+        from loguru import logger as _log
+        _log.warning(
+            f"Déduplication ignorée : {len(chunk_list)} chunks > limite {MAX_CHUNKS_FOR_DEDUP}. "
+            "Utiliser deduplicate_chroma.py en post-traitement."
+        )
         return chunk_list
 
     texts_by_id: Dict[str, str] = {}

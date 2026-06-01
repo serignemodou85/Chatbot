@@ -18,8 +18,14 @@ import argparse
 import json
 import sys
 import time
+from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Tuple
+
+# Windows cp1252 → forcer UTF-8 pour les caractères spéciaux (✓ ✗ é...)
+if sys.stdout.encoding and sys.stdout.encoding.lower() != "utf-8":
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
 from loguru import logger
 
@@ -53,9 +59,9 @@ def source_relevance_score(sources: List[Dict], topic_keywords: List[str]) -> Tu
     relevant_sources = []
     for src in sources:
         filepath = src.get("file", "").lower()
-        filename = Path(filepath).name.lower()
-        # Un fichier source est considéré pertinent si son nom contient un mot-clé
-        if any(kw.lower() in filename for kw in topic_keywords):
+        # Vérifier chemin complet (inclut le dossier ex: data/docs/zabbix/...)
+        # car certains fichiers n'ont pas le nom du produit dans leur titre
+        if any(kw.lower() in filepath for kw in topic_keywords):
             relevant_sources.append(Path(filepath).name)
 
     ratio = len(relevant_sources) / len(sources) if sources else 0.0
@@ -122,6 +128,105 @@ def evaluate_case(chain: RAGChain, case: Dict, user_mode: str) -> Dict:
     }
 
 
+# ── Rapport HTML ──────────────────────────────────────────────────────────────
+
+def generate_html_report(summary: Dict, details: List[Dict]) -> str:
+    """Génère un rapport HTML autonome (CSS inline, imprimable en PDF)."""
+    date_str = datetime.now().strftime("%d/%m/%Y à %Hh%M")
+    target_pct = f"{summary['target']:.0%}"
+    rate_pct   = f"{summary['relevance_rate']:.1%}"
+    target_ok  = summary["target_reached"]
+    badge_color = "#16a34a" if target_ok else "#dc2626"
+    badge_text  = "✓ Objectif atteint" if target_ok else "✗ Objectif non atteint"
+
+    rows = ""
+    for i, item in enumerate(details, 1):
+        m      = item["metrics"]
+        status = "✓" if item["relevant"] else "✗"
+        color  = "#16a34a" if item["relevant"] else "#dc2626"
+        kw_pct = f"{m['keyword_ratio']:.0%}"
+        src_pct = f"{m['source_relevance_ratio']:.0%}"
+        answer_html = item["answer_preview"].replace("<", "&lt;").replace(">", "&gt;").replace("\n", "<br>")
+        rows += f"""
+        <tr>
+          <td style="color:{color};font-weight:bold;text-align:center">{status}</td>
+          <td>Q{i} — {item['question']}</td>
+          <td style="text-align:center">{kw_pct}<br><small style="color:#6b7280">{m['keyword_hits']}</small></td>
+          <td style="text-align:center">{src_pct}</td>
+          <td style="text-align:center">{m['latency_s']}s</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td colspan="4" style="background:#f8fafc;padding:8px 12px;font-size:0.85em;color:#374151;border-left:3px solid #e5e7eb">
+            {answer_html}
+          </td>
+        </tr>"""
+
+    return f"""<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Rapport d'évaluation RAG — InfraBot</title>
+<style>
+  @media print {{ body {{ font-size: 11pt; }} .no-print {{ display:none; }} }}
+  body {{ font-family: 'Segoe UI', Arial, sans-serif; max-width: 960px; margin: 40px auto;
+         padding: 0 24px; color: #111827; background: #fff; }}
+  h1   {{ font-size: 1.6em; margin-bottom: 4px; }}
+  .sub {{ color: #6b7280; font-size: 0.9em; margin-bottom: 32px; }}
+  .cards {{ display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 32px; }}
+  .card {{ background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px;
+           padding: 16px 20px; min-width: 160px; flex: 1; }}
+  .card .val {{ font-size: 2em; font-weight: 700; }}
+  .card .lbl {{ font-size: 0.82em; color: #6b7280; margin-top: 2px; }}
+  .badge {{ display: inline-block; padding: 6px 16px; border-radius: 20px;
+            color: #fff; font-weight: 600; background: {badge_color}; margin-bottom: 28px; }}
+  table {{ width: 100%; border-collapse: collapse; font-size: 0.9em; }}
+  th    {{ background: #1e3a5f; color: #fff; padding: 10px 14px; text-align: left; }}
+  td    {{ padding: 8px 14px; border-bottom: 1px solid #e5e7eb; vertical-align: top; }}
+  tr:hover td {{ background: #f0f9ff; }}
+  .footer {{ margin-top: 40px; font-size: 0.8em; color: #9ca3af; text-align: center; }}
+</style>
+</head>
+<body>
+<h1>🛡️ InfraBot — Rapport d'évaluation RAG</h1>
+<div class="sub">Généré le {date_str} · Mode : {summary['mode']} · Objectif : {target_pct}</div>
+
+<div class="cards">
+  <div class="card">
+    <div class="val">{summary['relevant_answers']}/{summary['total_questions']}</div>
+    <div class="lbl">Questions pertinentes</div>
+  </div>
+  <div class="card">
+    <div class="val">{rate_pct}</div>
+    <div class="lbl">Taux de pertinence</div>
+  </div>
+  <div class="card">
+    <div class="val">{summary['avg_latency_s']:.1f}s</div>
+    <div class="lbl">Latence moyenne</div>
+  </div>
+</div>
+
+<div class="badge">{badge_text}</div>
+
+<table>
+  <thead>
+    <tr>
+      <th style="width:40px"></th>
+      <th>Question</th>
+      <th style="width:110px">Mots-clés</th>
+      <th style="width:90px">Sources</th>
+      <th style="width:70px">Latence</th>
+    </tr>
+  </thead>
+  <tbody>{rows}</tbody>
+</table>
+
+<div class="footer">InfraBot RAG Chatbot · Phase 1 + Phase 2 · LangChain + ChromaDB + llama3.2 + CrewAI</div>
+</body>
+</html>"""
+
+
 # ── Rapport console ────────────────────────────────────────────────────────────
 
 def print_report(summary: Dict, details: List[Dict], verbose: bool = False):
@@ -186,8 +291,15 @@ def main():
     )
     args = parser.parse_args()
 
-    dataset_path = Path(args.dataset)
-    report_path = Path(args.report)
+    dataset_path = Path(args.dataset).resolve()
+    report_path  = Path(args.report).resolve()
+    project_root = Path(__file__).parent.parent.resolve()
+
+    # Restreindre la lecture/écriture au dossier du projet
+    if not str(dataset_path).startswith(str(project_root)):
+        raise ValueError(f"--dataset doit être dans le projet : {dataset_path}")
+    if not str(report_path).startswith(str(project_root)):
+        raise ValueError(f"--report doit être dans le projet : {report_path}")
 
     logger.info("Chargement du jeu d'évaluation...")
     if not dataset_path.exists():
@@ -203,6 +315,9 @@ def main():
     logger.info(f"Évaluation de {len(eval_set)} questions en mode '{args.mode}'...")
     details = []
     for case in eval_set:
+        # Réinitialiser la mémoire entre chaque question pour une évaluation indépendante.
+        # En production, chaque session Streamlit démarre avec une mémoire vide.
+        chain.reset_memory()
         result = evaluate_case(chain, case, args.mode)
         status = "✓" if result["relevant"] else "✗"
         logger.info(f"  [{status}] {case['question'][:60]} — {result['metrics']['latency_s']}s")
@@ -222,13 +337,16 @@ def main():
         "mode": args.mode,
     }
 
-    report = {"summary": summary, "details": details}
     report_path.parent.mkdir(parents=True, exist_ok=True)
-    with report_path.open("w", encoding="utf-8") as f:
-        json.dump(report, f, ensure_ascii=False, indent=2)
+
+    # Rapport HTML (principal — lisible + imprimable en PDF)
+    html_path = report_path.with_suffix(".html")
+    html_content = generate_html_report(summary, details)
+    with html_path.open("w", encoding="utf-8") as f:
+        f.write(html_content)
+    logger.info(f"Rapport HTML sauvegardé : {html_path}")
 
     print_report(summary, details, verbose=args.verbose)
-    logger.info(f"Rapport sauvegardé : {report_path}")
 
     # Retourner exit code 1 si l'objectif n'est pas atteint (utile pour CI/CD)
     sys.exit(0 if summary["target_reached"] else 1)

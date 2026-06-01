@@ -146,10 +146,14 @@ class TestVectorStoreManager:
 
     def test_load_nonexistent_raises(self, tmp_path):
         """Charger une base inexistante doit lever une FileNotFoundError."""
-        settings.CHROMA_PERSIST_DIR = str(tmp_path / "inexistant")
-        vs_manager = VectorStoreManager()
-        with pytest.raises(FileNotFoundError):
-            vs_manager.load()
+        original_dir = settings.CHROMA_PERSIST_DIR
+        try:
+            settings.CHROMA_PERSIST_DIR = str(tmp_path / "inexistant")
+            vs_manager = VectorStoreManager()
+            with pytest.raises(FileNotFoundError):
+                vs_manager.load()
+        finally:
+            settings.CHROMA_PERSIST_DIR = original_dir
 
 
 # ── Test de cohérence du prompt RAG ──────────────────────────────────────────

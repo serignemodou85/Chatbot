@@ -1,9 +1,9 @@
-# CyberSec RAG Chatbot — Phase 1 + 2
+# InfraBot — Assistant IA Cybersécurité & Infrastructure
 
 Chatbot IA spécialisé en cybersécurité, infrastructure réseau et administration système.
 
-- **Phase 1** — RAG conversationnel : LangChain + ChromaDB + phi3:mini + Streamlit
-- **Phase 2** — Multi-agents : CrewAI avec 4 agents spécialisés (Doc, Réseau, Sécurité, Rapport)
+- **Phase 1** — RAG conversationnel : LangChain + ChromaDB + llama3.2 + Streamlit
+- **Phase 2** — Multi-agents : CrewAI + retrieval Python ciblé par outil + agent de synthèse
 
 ---
 
@@ -29,7 +29,7 @@ Chatbot IA spécialisé en cybersécurité, infrastructure réseau et administra
 |-------|---------|----------|--------------|
 | Python | **3.12.x** | Runtime du projet | `python --version` |
 | Git | ≥ 2.x | Versionnement | `git --version` |
-| Ollama | ≥ 0.23 | LLM local Llama 3 (gratuit) | `ollama --version` |
+| Ollama | ≥ 0.23 | LLM local llama3.2 (gratuit) | `ollama --version` |
 | Docker Desktop | ≥ 29 | Déploiement conteneurisé | `docker --version` |
 
 > **Note Windows** : Git for Windows s'installe dans `C:\Program Files\Git\`.
@@ -49,13 +49,8 @@ cd rag_chatbot
 ### Étape 2 — Créer l'environnement virtuel Python
 
 ```powershell
-# Créer le venv (une seule fois)
 python -m venv venv
-
-# Activer (Windows PowerShell)
 venv\Scripts\activate
-
-# Vérifier que le bon Python est utilisé
 python --version   # doit afficher Python 3.12.x
 ```
 
@@ -68,23 +63,19 @@ pip install -r requirements.txt
 
 > La première installation prend ~5 minutes (PyTorch, sentence-transformers, chromadb...).
 
-### Étape 4 — Installer Ollama + télécharger Llama 3
+### Étape 4 — Installer Ollama + télécharger llama3.2
 
 ```powershell
-# 1. Télécharger l'installeur depuis https://ollama.com → Windows
-#    Lancer OllamaSetup.exe et suivre l'assistant
+# 1. Télécharger depuis https://ollama.com → Windows (OllamaSetup.exe)
 
-# 2. Vérifier l'installation
-ollama --version   # ollama version is 0.x.x
+# 2. Vérifier
+ollama --version
 
-# 3. Démarrer le serveur Ollama (se lance automatiquement au démarrage Windows)
-ollama serve       # dans un terminal séparé, ou laisser tourner en tâche de fond
+# 3. Télécharger llama3.2 (3B params, ~2 GB — rapide sur CPU)
+ollama pull llama3.2
 
-# 4. Télécharger le modèle Llama 3 (~4.7 GB, une seule fois)
-ollama pull llama3
-
-# 5. Tester que le modèle répond
-ollama run llama3 "Réponds juste 'ok' pour tester"
+# 4. Tester
+ollama run llama3.2 "Réponds juste 'ok' pour tester"
 ```
 
 > **Si ollama n'est pas reconnu dans PowerShell** :
@@ -95,26 +86,24 @@ ollama run llama3 "Réponds juste 'ok' pour tester"
 ## 3. Configuration (.env)
 
 ```powershell
-# Copier le template
 copy .env.example .env
 ```
 
-Ouvrir `.env` et vérifier/ajuster :
+Ouvrir `.env` et vérifier :
 
 ```ini
-# ── LLM Phase 1 — RAG Chat ────────────────────────────────────────────────────
-LLM_PROVIDER=ollama          # "ollama" (local gratuit) ou "openai" (payant)
-LLM_MODEL=phi3:mini          # phi3:mini = 3.8B, rapide (~30s) ; llama3 = 8B, qualité max
-LLM_TEMPERATURE=0.1          # 0=déterministe, 1=créatif
-
+# ── LLM ──────────────────────────────────────────────────────────────────────
+LLM_PROVIDER=ollama
+LLM_MODEL=llama3.2          # 3B params, ~2 Go RAM, ~3-5 min/réponse sur CPU
+LLM_TEMPERATURE=0.1
 OPENAI_API_KEY=              # Laisser vide si Ollama
 OLLAMA_BASE_URL=http://localhost:11434
 
-# ── LLM Phase 2 — Agents CrewAI ──────────────────────────────────────────────
-CREW_LLM_MODEL=llama3        # llama3 (8B) pour les agents — meilleur suivi d'instructions
+# ── Phase 2 — Agents CrewAI ──────────────────────────────────────────────────
+CREW_LLM_MODEL=llama3.2     # même modèle : cohérence + mémoire RAM partagée
 
 # ── Embeddings ────────────────────────────────────────────────────────────────
-EMBEDDING_PROVIDER=huggingface              # Local, gratuit, aucune clé requise
+EMBEDDING_PROVIDER=huggingface
 EMBEDDING_MODEL=sentence-transformers/all-MiniLM-L6-v2
 
 # ── ChromaDB ─────────────────────────────────────────────────────────────────
@@ -122,9 +111,9 @@ CHROMA_PERSIST_DIR=./data/chroma_db
 CHROMA_COLLECTION=cybersec_docs
 
 # ── RAG ───────────────────────────────────────────────────────────────────────
-CHUNK_SIZE=512               # Tokens par chunk
-CHUNK_OVERLAP=64             # Chevauchement entre chunks consécutifs
-RETRIEVER_K=4                # Nombre de chunks retournés par requête
+CHUNK_SIZE=512
+CHUNK_OVERLAP=64
+RETRIEVER_K=6
 ```
 
 > `.env` est dans `.gitignore` — il ne sera jamais commité sur GitHub.
@@ -140,13 +129,13 @@ L'indexation convertit tes PDFs/docs en vecteurs stockés dans ChromaDB.
 
 ```
 data/docs/
-├── wazuh/          ← PDFs Wazuh (agent, installation, analyse...)
-├── zabbix/         ← PDFs Zabbix (hôtes, installation, doc 7.4...)
-├── dolibarr/       ← PDFs Dolibarr (install, orga, sécurité...)
+├── wazuh/          ← Guide installation, agent, analyse, POC Lab, Ruleset
+├── zabbix/         ← Documentation 7.4, hôtes, installation
+├── dolibarr/       ← Installation, sécurité, organisation
 ├── Ubuntu Server/  ← Guide Ubuntu Server
-├── linux/          ← Tes docs Linux (à ajouter)
-├── pfsense/        ← Docs pfSense/OpenVPN (à ajouter)
-└── Windows Server/ ← Docs Windows Server (à ajouter)
+├── linux/          ← Admin Linux, System Administration
+├── pfsense/        ← Documentation Netgate, OpenVPN
+└── Windows Server/ ← Installation/Configuration, Admin Guide
 ```
 
 Formats supportés : `.pdf`, `.docx`, `.txt`, `.md`, `.html`
@@ -154,64 +143,92 @@ Formats supportés : `.pdf`, `.docx`, `.txt`, `.md`, `.html`
 ### Lancer l'indexation
 
 ```powershell
-# Venv activé obligatoire
 venv\Scripts\activate
 
-# Indexation standard
+# Indexation complète (première fois ou après ajout de docs)
+python scripts/build_index.py --reset
+
+# Ajouter des docs sans écraser l'existant
 python scripts/build_index.py
 
-# Options avancées
-python scripts/build_index.py --reset                    # Réindexer depuis zéro
-python scripts/build_index.py --docs-dir C:\mes\docs     # Dossier personnalisé
-python scripts/build_index.py --dedupe-threshold 0.95    # Seuil anti-doublons
+# Options
+python scripts/build_index.py --docs-dir C:\mes\docs
+python scripts/build_index.py --dedupe-threshold 0.95
 ```
 
 **Sortie attendue :**
 ```
-INFO  Fichiers trouvés : 12
-INFO  Chargé : Zabbix_Documentation_7.4.en.pdf (2239 sections)
-INFO  Total chunks produits : 11490
-INFO  Indexation de 11490 chunks dans ChromaDB...
-INFO  Base vectorielle créée : 11490 vecteurs stockés dans ./data/chroma_db
+INFO  Fichiers trouvés : 21
+INFO  Chargé : Wazuh - Deployment and Administration Guide.pdf (55 sections)
+INFO  Total chunks produits : 29 897
+INFO  Indexation de 29 897 chunks en 6 batch(es) dans ChromaDB...
+INFO  Base vectorielle créée : 29 897 vecteurs stockés dans ./data/chroma_db
+INFO  Indexation terminée en ~796s
 ```
 
-> La première fois : ~10-15 min (téléchargement modèle HuggingFace ~90 MB + vectorisation).
-> Les fois suivantes : ~2-3 min (modèle déjà en cache dans `data/embedding_cache/`).
+> ⚠️ Ne pas lancer `build_index.py` sans `--reset` si la base existe déjà,
+> sous peine de doubler les vecteurs (doublons = qualité de recherche réduite).
 
 ---
 
 ## 5. Lancer le chatbot
 
 ```powershell
-# Prérequis : venv activé + index ChromaDB construit + Ollama serve lancé
 venv\Scripts\activate
 
-# Lancer l'interface
-streamlit run src/interface/app.py
+# Sur Windows (contourne Device Guard qui bloque les .exe en répertoire utilisateur)
+run.bat
+
+# Ou directement
+venv\Scripts\python -m streamlit run src/interface/app.py
 ```
 
 Ouvrir **http://localhost:8501** dans le navigateur.
 
 ### Interface
 
+L'interface est un **chat unifié avec routage automatique** :
+
+- **Questions simples** (définition, procédure single-outil) → RAG direct (~30 s - 2 min)
+- **Questions complexes** (comparaisons, multi-outils, déploiement) → Agents CrewAI (~2-5 min)
+
 ```
 ┌──────────────────────────────────────────────────────────────┐
-│ SIDEBAR                │ 🛡️ CyberSec RAG Chatbot             │
+│ SIDEBAR                │ 🛡️ InfraBot                         │
 │                        │                                      │
-│ Mode utilisateur :     │ ┌─ 💬 Chat RAG ─┬─ 🤖 Agents Ph.2 ─┐│
-│  🎓 Étudiant           │ │               │                  ││
-│  🖥️ Admin système      │ │ [Historique]  │  [Zone de texte] ││
-│  🔒 Pro cybersécurité  │ │ [Sources]     │  [Lancer analyse]││
-│                        │ │ [👍 / 👎]     │  [Rapport final] ││
-│ [Nouvelle conv.]       │ │               │                  ││
-│                        │ │ [Saisie...]   │                  ││
-│ Base documentaire :    │ └───────────────┴──────────────────┘│
-│  Wazuh · Zabbix        │                                      │
-│  Dolibarr · Ubuntu     │                                      │
+│ Mode utilisateur :     │ 💬 Chat unifié                       │
+│  🎓 Étudiant           │                                      │
+│  🖥️ Admin système      │ [Historique messages]                │
+│  🔒 Pro cybersécurité  │ [Sources cliquables]                 │
+│                        │ [👍 / 👎 feedback]                   │
+│ [Nouvelle conv.]       │                                      │
+│ [Conversations]        │ [Saisie question...]                 │
+│                        │                                      │
 └──────────────────────────────────────────────────────────────┘
 ```
 
-### Exemples de questions à poser
+### Icônes Material et améliorations UX
+
+L'interface utilise les **icônes Material Design** de Streamlit 1.40+ :
+
+| Élément | Icône Material |
+|---------|---------------|
+| Nouvelle conversation | `:material/add:` |
+| Épingler / Désépingler | `:material/push_pin:` |
+| Renommer | `:material/edit:` |
+| Archiver / Restaurer | `:material/archive:` / `:material/unarchive:` |
+| Supprimer | `:material/delete:` |
+| Sauver / Annuler le renommage | `:material/check:` / `:material/close:` |
+| Approfondir avec les agents | `:material/psychology:` |
+| Copier la réponse | `:material/content_copy:` |
+| Feedback utile / à améliorer | `:material/thumb_up:` / `:material/thumb_down:` |
+
+CSS injecté au chargement :
+- Conversation active = fond violet + bordure gauche (`:material/push_pin:` CSS)
+- Hover discret sur les autres conversations
+- Boutons feedback compacts en forme de pilule
+
+### Exemples de questions
 
 ```
 🎓 Mode Étudiant :
@@ -234,8 +251,8 @@ Ouvrir **http://localhost:8501** dans le navigateur.
 
 ## 6. Phase 2 — Agents CrewAI
 
-La Phase 2 ajoute un onglet **🤖 Agents** dans l'interface Streamlit.
-Plusieurs agents spécialisés collaborent pour répondre à des questions complexes.
+La Phase 2 mobilise des agents spécialisés pour les questions complexes.
+Le routage est **automatique** — pas besoin de choisir manuellement.
 
 ### Architecture
 
@@ -243,142 +260,150 @@ Plusieurs agents spécialisés collaborent pour répondre à des questions compl
 Question complexe
        │
        ▼
-_classify(question)          ← Python, pas de LLM
+_classify(question)          ← Python, ~0 ms, pas de LLM
        │
   ┌────┴────┐
   ▼         ▼
 network?  security?  doc?    ← mots-clés (_NETWORK_KW, _SECURITY_KW)
   │         │         │
   ▼         ▼         ▼
-Agent     Agent     Agent    ← chacun cherche dans ChromaDB (filtré par domaine)
-Réseau   Sécurité   Doc
+Recherche ciblée par outil dans ChromaDB
+  pfsense   wazuh    tous
+  openvpn   zabbix
   │         │         │
   └────┬────┘─────────┘
        ▼
-  Agent Rapport              ← synthèse + formatage Markdown
+Re-ranking cross-encoder     ← réordonne par vraie pertinence
        │
        ▼
-  Rapport final structuré
+  Agent Rapport               ← un seul appel LLM pour la synthèse
+       │
+       ▼
+  Rapport final structuré Markdown
 ```
 
-### Les 4 agents
+### Le routage automatique
 
-| Agent | Rôle | Outil ChromaDB |
-|-------|------|----------------|
-| 🗂️ Documentation | Recherche générale | Tous les docs, k=5 |
-| 🌐 Réseau | VPN, pare-feu, pfSense | Filtrage par mots-clés source |
-| 🔐 Sécurité | Wazuh, Zabbix, SIEM | Filtrage par mots-clés source |
-| 📝 Rapport | Synthèse + mise en forme | Aucun (LLM seul) |
+| Signal | Exemple | Route |
+|--------|---------|-------|
+| Question courte, 1 outil | "C'est quoi Wazuh ?" | RAG direct |
+| Comparaison multi-outils | "Différence Wazuh vs Zabbix ?" | Agents |
+| Déploiement d'infrastructure | "Déployer pfSense + Wazuh pour 50 postes" | Agents |
+| Mot-clé agent explicite | "compare", "versus", "infrastructure" | Agents |
 
 ### Tester les agents en CLI
 
 ```powershell
 venv\Scripts\activate
 $env:PYTHONPATH = "."
-$env:PYTHONIOENCODING = "utf-8"   # nécessaire sur Windows pour les logs crewaI
+$env:PYTHONIOENCODING = "utf-8"
 
 # Tester le routage uniquement (rapide)
 python scripts/run_crew.py --classify-only --question "Compare Wazuh et Zabbix"
 # Sortie : Routage : ['security']
 
-# Lancer un crew complet (~5-8 min avec llama3)
+# Lancer un crew complet (~2-5 min avec llama3.2)
 python scripts/run_crew.py --question "Compare Wazuh et Zabbix" --mode admin
 
 # Options
-python scripts/run_crew.py --mode etudiant    # etudiant | admin | pro
+python scripts/run_crew.py --mode etudiant
 python scripts/run_crew.py --mode pro --question "Analyse CVE Zabbix 2024"
 ```
 
-### Utiliser l'onglet Agents dans l'UI
+### Command Validator — filtrage automatique des commandes inventées
 
-1. Démarrer Streamlit : `streamlit run src/interface/app.py`
-2. Cliquer sur l'onglet **🤖 Agents — Phase 2**
-3. Saisir une question complexe dans la zone de texte
-4. Cliquer **🚀 Lancer l'analyse** — les agents travaillent (~5-8 min)
-5. Le rapport Markdown s'affiche sous les métriques (agents utilisés, domaines)
+Les LLMs locaux (llama3.2 3B) peuvent générer des commandes inexistantes même avec un prompt strict.
+Exemple observé : question SSH → `swanctl` (IPsec, hors sujet), `enablesshd` (commande inventée).
+
+Chaque réponse passe par `src/retrieval/command_validator.py` **après** génération :
+
+```
+LLM génère réponse
+        ↓
+Niveau 1 — Mélange de technologies
+  swanctl (IPsec) + sshd (SSH serveur) dans la même réponse → bloqué
+  pfctl (BSD/pfSense) + iptables (Linux) → OS incompatibles → bloqué
+        ↓
+Niveau 2 — Whitelist par technologie détectée
+  pfSense → GUI uniquement, 0 commande CLI autorisée
+  strongSwan → uniquement "swanctl"
+  FreeBSD pf → uniquement "pfctl"
+  Linux → liste étendue (ip, iptables, nft, systemctl, apt…)
+        ↓
+Niveau 3 — Présence dans le contexte RAG (fallback)
+  Toute commande doit apparaître textuellement dans les chunks récupérés
+  Commande absente → réponse entière remplacée par un message d'absence
+```
+
+**Patterns de détection des commandes dans la réponse :**
+- Blocs de code ` ``` ``` ` et inline `` `commande` ``
+- Lignes shell `$`, `#`, `>`
+- Tokens `*ctl` (swanctl, systemctl, pfctl…)
+- Chemins Unix absolus `/bin/`, `/etc/`…
+- `sudo <commande>`
+- CamelCase technique (`SSHdKeyOnly`, `PublicKeyOnly`)
+- `enable*` composés (`enablesshd`, `enablefirewall`)
+
+**Logs produits :**
+```
+WARNING [CommandValidator] Commandes absentes du contexte RAG : ['enablesshd', 'sshdkeyonly'] — réponse bloquée.
+WARNING [CommandValidator] pfSense (GUI only) — 2 commande(s) CLI bloquée(s) : ['pfctl', 'iptables']
+WARNING [CommandValidator] Mélange technologique — familles : ['ipsec', 'ssh_srv'] — réponse bloquée.
+```
 
 ### Exemples de questions pour les agents
 
 ```
-🌐 Réseau uniquement :
+🌐 Réseau :
   "Comment configurer un VPN site-à-site avec pfSense ?"
   "Explique les VLANs et leur utilité dans un réseau d'entreprise"
 
-🔐 Sécurité uniquement :
-  "Quels sont les indicateurs de compromission à surveiller avec Wazuh ?"
+🔐 Sécurité :
+  "Comment configurer la détection SSH brute-force dans Wazuh ?"
   "Configure les alertes Zabbix pour détecter une charge CPU anormale"
 
-🌐🔐 Réseau + Sécurité :
+🌐🔐 Multi-outils :
+  "Je veux déployer pfSense + Wazuh + Zabbix pour 50 postes. Par où commencer ?"
   "Compare Wazuh et Zabbix pour superviser 50 machines"
-  "Quels sont les risques d'un serveur Ubuntu sans pare-feu ?"
-
-🗂️ Documentation générale :
-  "Comment créer un utilisateur admin dans Dolibarr ?"
 ```
 
 ---
 
 ## 7. Lancer avec Docker
 
-Docker empaquette tout (Python, dépendances, code) dans une image portable.
-
-### Prérequis
-
-- Docker Desktop installé et démarré
-- `.env` configuré (même fichier qu'en local)
-
-### Démarrage complet
-
 ```powershell
-# 1. Construire l'image (première fois : ~5-10 min)
-docker build -t rag-chatbot .
+# 1. Construire l'image (~5-10 min première fois)
+docker build -t infrabot .
 
-# 2. Lancer tous les services (app + Ollama)
+# 2. Lancer tous les services
 docker compose up -d
 
-# 3. Vérifier que tout tourne
+# 3. Vérifier
 docker compose ps
 
-# 4. Indexer les documents dans Docker (première fois seulement)
+# 4. Indexer les documents (première fois)
 docker compose run --rm indexer
 
-# 5. Voir les logs en temps réel
-docker compose logs -f app
-
-# 6. Accéder au chatbot
-# Ouvrir http://localhost:8501
+# 5. Accéder au chatbot
+# http://localhost:8501
 ```
 
 ### Commandes Docker du quotidien
 
 ```powershell
-# Arrêter tout
-docker compose down
-
-# Redémarrer uniquement l'app
-docker compose restart app
-
-# Mettre à jour après modification du code
-docker compose build app
-docker compose up -d app
-
-# Ouvrir un shell dans le container (debug)
-docker compose exec app bash
-
-# Voir la consommation de ressources
-docker stats
+docker compose down                   # Arrêter
+docker compose restart app            # Redémarrer l'app
+docker compose build app && docker compose up -d app   # Après modif du code
+docker compose exec app bash          # Shell dans le container
+docker compose logs -f app            # Logs en temps réel
+docker stats                          # Consommation ressources
 ```
 
-### Premier lancement avec Ollama dans Docker
+### Premier lancement Ollama dans Docker
 
 ```powershell
-# 1. Démarrer Ollama seulement
 docker compose up -d ollama
-
-# 2. Télécharger le modèle Llama 3 dans le container
-docker compose exec ollama ollama pull llama3
-
-# 3. Démarrer l'application
+docker compose exec ollama ollama pull llama3.2
 docker compose up -d app
 ```
 
@@ -386,64 +411,41 @@ docker compose up -d app
 
 ## 8. Tests et évaluation
 
-### Tests automatisés (unitaires + intégration)
+### Tests automatisés
 
 ```powershell
 venv\Scripts\activate
-pytest tests/ -v                          # Tous les tests
-pytest tests/test_pipeline.py -v          # Pipeline uniquement
-pytest tests/ -v -k "test_chunking"       # Filtre par nom
+pytest tests/ -v                      # Tous les tests
+pytest tests/test_pipeline.py -v     # Pipeline RAG uniquement
+pytest tests/test_phase2.py -v       # Phase 2 agents
 ```
 
 **Tests couverts :**
-- Chunking et métadonnées des documents
+- Chunking et métadonnées
 - Build/load ChromaDB
-- Recherche par similarité
-- Validation du prompt RAG
-- Algorithme de déduplication
+- Recherche par similarité + re-ranking
+- Validation du prompt RAG (anti-hallucination)
+- Déduplication
+- Routage des agents
 
 ### Évaluation de la qualité RAG
 
 ```powershell
-# Évaluation standard sur le jeu de test (data/eval/test_questions.json)
 python scripts/evaluate_rag.py
-
-# Avec affichage des réponses
 python scripts/evaluate_rag.py --verbose
-
-# Avec objectif personnalisé
 python scripts/evaluate_rag.py --target 0.75
-
-# En mode Pro cybersécurité
 python scripts/evaluate_rag.py --mode "🔒 Pro cybersécurité" --verbose
 ```
 
-**Métriques mesurées :**
+**Métriques :**
 
 | Métrique | Description |
 |---------|-------------|
 | `keyword_ratio` | % des mots-clés attendus trouvés dans la réponse |
-| `source_relevance` | Les sources citées sont-elles pertinentes au sujet ? |
-| `has_substantive_answer` | La réponse contient du contenu réel (pas un refus) |
+| `source_relevance` | Les sources citées sont-elles pertinentes ? |
+| `has_substantive_answer` | Réponse réelle (pas un refus) |
 | `latency_s` | Temps de réponse en secondes |
 | `sources_count` | Nombre de sources distinctes citées |
-
-**Sortie attendue :**
-```
-────────────────────────────────────────────────────────────
-  RAPPORT D'ÉVALUATION RAG
-────────────────────────────────────────────────────────────
-  Questions testées : 4
-  Réponses pertinentes : 3/4
-  Taux de pertinence : 75.0%
-  Latence moyenne : 8.32s
-  Objectif (80%) atteint : ✗ NON
-────────────────────────────────────────────────────────────
-  [✓] Q1: A quoi sert Wazuh dans une architecture securite ?
-       Mots-clés  : 80% (4/5 — trouvés: ['wazuh', 'siem', 'detection', 'incidents'])
-       Sources    : 3 citées, pertinence: 100%
-       Latence    : 7.45s
-```
 
 ---
 
@@ -452,33 +454,27 @@ python scripts/evaluate_rag.py --mode "🔒 Pro cybersécurité" --verbose
 ### Ajouter de nouveaux documents
 
 ```powershell
-# 1. Copier les nouveaux PDFs dans data/docs/
-copy "C:\mes\nouveaux\docs\*.pdf" data\docs\linux\
+# 1. Copier les PDFs dans data/docs/
+copy "C:\mes\docs\*.pdf" data\docs\wazuh\
 
-# 2. Réindexer (ajoute sans écraser l'existant)
-python scripts/build_index.py
-
-# Ou réindexer depuis zéro si besoin
+# 2. Réindexer proprement depuis zéro
 python scripts/build_index.py --reset
 ```
+
+> Toujours utiliser `--reset` quand on réindexe après ajout de docs.
+> Sans `--reset`, les anciens vecteurs restent et se cumulent avec les nouveaux (doublons).
 
 ### Supprimer les doublons dans ChromaDB
 
 ```powershell
-# Aperçu (sans modifier)
-python scripts/deduplicate_chroma.py --dry-run
-
-# Supprimer les doublons (seuil 0.92 par défaut)
-python scripts/deduplicate_chroma.py
-
-# Avec seuil personnalisé
+python scripts/deduplicate_chroma.py --dry-run    # Aperçu
+python scripts/deduplicate_chroma.py              # Supprimer
 python scripts/deduplicate_chroma.py --threshold 0.95
 ```
 
-### Réinitialiser complètement la base
+### Réinitialiser complètement
 
 ```powershell
-# Supprimer ChromaDB et réindexer
 python scripts/build_index.py --reset
 ```
 
@@ -495,45 +491,50 @@ rag_chatbot/
 ├── Dockerfile              ← Image Docker Python 3.12
 ├── docker-compose.yml      ← Services : app + ollama + indexer
 ├── requirements.txt        ← Dépendances Python (Phase 1 + 2)
+├── run.bat                 ← Lancement Windows (contourne Device Guard)
 ├── cours.md                ← Guide d'apprentissage de la stack
 │
 ├── config/
-│   └── settings.py         ← Chargement centralisé du .env (incl. CREW_LLM_MODEL)
+│   └── settings.py         ← Chargement centralisé du .env
 │
 ├── src/
 │   ├── ingestion/
 │   │   ├── document_loader.py  ← Chunking hiérarchique + récursif
-│   │   ├── vectorstore.py      ← Gestion ChromaDB (batch 5000, 11490 vecteurs)
+│   │   ├── vectorstore.py      ← ChromaDB (batch 5000, MMR + RerankedRetriever)
 │   │   └── deduplication.py    ← Anti-doublons (seuil 0.92)
 │   ├── llm/
 │   │   └── llm_factory.py      ← Factory OpenAI / Ollama
 │   ├── retrieval/
-│   │   └── rag_chain.py        ← Pipeline RAG conversationnel (phi3:mini)
+│   │   ├── rag_chain.py        ← Pipeline RAG conversationnel (llama3.2)
+│   │   ├── reranker.py         ← Cross-encoder re-ranking (ms-marco-MiniLM-L-12-v2)
+│   │   ├── cache.py            ← Cache sémantique LRU (cosine ≥ 0.95)
+│   │   └── command_validator.py← Post-processing anti-hallucination (3 niveaux)
 │   ├── agents/                 ← Phase 2 — Multi-agents CrewAI
 │   │   ├── tools/
 │   │   │   └── rag_tools.py    ← 3 outils ChromaDB (doc / réseau / sécurité)
-│   │   ├── agents.py           ← 4 factory : doc / network / security / report
+│   │   ├── agents.py           ← Factory : doc / network / security / report
 │   │   ├── tasks.py            ← make_research_task + make_report_task
-│   │   └── crew.py             ← _classify() + CyberSecCrew.run()
+│   │   └── crew.py             ← _classify() + retrieval Python + CyberSecCrew.run()
 │   └── interface/
-│       └── app.py              ← Streamlit : onglet Chat + onglet Agents
+│       └── app.py              ← Streamlit : chat unifié + routage automatique
 │
 ├── scripts/
-│   ├── build_index.py          ← Indexation initiale
+│   ├── build_index.py          ← Indexation (--reset recommandé)
 │   ├── deduplicate_chroma.py   ← Nettoyage doublons
 │   ├── evaluate_rag.py         ← Évaluation qualité Phase 1
 │   └── run_crew.py             ← Test CLI du crew Phase 2
 │
 ├── tests/
-│   ├── test_pipeline.py        ← Tests intégration pipeline
-│   └── test_quality_tools.py   ← Tests déduplication et modes
+│   ├── test_pipeline.py        ← Tests intégration pipeline RAG
+│   ├── test_quality_tools.py   ← Tests déduplication et modes
+│   └── test_phase2.py          ← Tests agents Phase 2
 │
 └── data/                       ← Ignoré par git
-    ├── docs/                   ← Documents source (PDFs...)
-    ├── chroma_db/              ← Base vectorielle (11490 vecteurs)
-    ├── embedding_cache/        ← Modèle HuggingFace (cache local)
+    ├── docs/                   ← 21 documents source (PDFs)
+    ├── chroma_db/              ← Base vectorielle (~29 897 vecteurs)
+    ├── embedding_cache/        ← Modèle HuggingFace all-MiniLM-L6-v2 (cache)
     ├── feedback/               ← Feedbacks utilisateurs (JSON)
-    ├── session/                ← Historique conversation (JSON, survie à la veille)
+    ├── session/                ← Historique conversations (JSON)
     └── eval/                   ← Rapports d'évaluation
 ```
 
@@ -544,122 +545,95 @@ rag_chatbot/
 ### `ollama` non reconnu dans PowerShell
 
 ```powershell
-# Ajouter Ollama au PATH de la session
 $env:PATH = "$env:LOCALAPPDATA\Programs\Ollama;" + $env:PATH
 ollama --version
-
-# Pour le rendre permanent : Paramètres Windows → Variables d'environnement
-# Ajouter C:\Users\<user>\AppData\Local\Programs\Ollama à la variable PATH
-```
-
-### `git` non reconnu dans PowerShell
-
-```powershell
-$env:PATH = "C:\Program Files\Git\cmd;" + $env:PATH
-git --version
 ```
 
 ### Erreur `Base ChromaDB introuvable`
 
 ```powershell
-# La base n'a pas encore été construite — lancer l'indexation d'abord
-python scripts/build_index.py
+python scripts/build_index.py --reset
 ```
 
-### Ollama ne répond pas (erreur de connexion)
+### Ollama ne répond pas
 
 ```powershell
-# Vérifier que le serveur tourne
 curl http://localhost:11434/api/tags
-
-# Si pas de réponse, démarrer le serveur
-ollama serve
-
-# Ou vérifier le processus
-Get-Process ollama -ErrorAction SilentlyContinue
+ollama serve        # si pas de réponse
+Get-Process ollama  # vérifier le processus
 ```
 
-### Modèle Llama 3 non trouvé
+### Modèle llama3.2 non trouvé
 
 ```powershell
-# Lister les modèles disponibles
 ollama list
-
-# Télécharger Llama 3
-ollama pull llama3   # ~4.7 GB
-
-# Tester
-ollama run llama3 "test"
+ollama pull llama3.2
+ollama run llama3.2 "test"
 ```
 
-### Mémoire insuffisante pour Llama 3
+### Réponses très lentes (> 10 min)
+
+La cause la plus fréquente : mauvais modèle dans `.env`.
+
+```ini
+# .env — vérifier que c'est bien llama3.2 (3B) et non llama3 (8B)
+LLM_MODEL=llama3.2
+CREW_LLM_MODEL=llama3.2
+```
+
+Temps attendus sur CPU (AMD Ryzen, pas de GPU) :
+- RAG simple : ~2-3 min
+- Agents multi-outils : ~3-5 min
+
+### Device Guard bloque `streamlit.exe` (Windows)
 
 ```powershell
-# Utiliser llama3:8b (plus léger) au lieu de llama3 (70B par défaut)
-ollama pull llama3:8b
-
-# Mettre à jour .env
-# LLM_MODEL=llama3:8b
+# Utiliser run.bat à la place de streamlit directement
+run.bat
+# ou
+venv\Scripts\python -m streamlit run src/interface/app.py
 ```
 
 ### `ModuleNotFoundError` au lancement
 
 ```powershell
-# Vérifier que le venv est activé
 venv\Scripts\activate
-python -c "import langchain; print('OK')"
-
-# Réinstaller si besoin
 pip install -r requirements.txt
+```
+
+### ChromaDB — doublons (vecteurs > 2× le nombre de chunks)
+
+```powershell
+# Réindexer proprement
+python scripts/build_index.py --reset
+```
+
+### ChromaDB — `sqlite3.OperationalError: no such column: collections.topic`
+
+```powershell
+$env:PYTHONPATH = "."
+venv\Scripts\python scripts/_fix_chroma_schema.py
+# ou relancer build_index.py — le fix est appliqué automatiquement
+```
+
+### Agents CrewAI — `UnicodeEncodeError` dans le terminal
+
+```powershell
+$env:PYTHONIOENCODING = "utf-8"
+python scripts/run_crew.py --question "..."
 ```
 
 ### Qualité des réponses insuffisante
 
 ```powershell
-# 1. Vérifier le nombre de chunks indexés
+# Vérifier le nombre de chunks indexés
 python -c "
 import sys; sys.path.insert(0,'.')
 from src.ingestion.vectorstore import VectorStoreManager
-vs = VectorStoreManager()
-vs.load()
+vs = VectorStoreManager(); vs.load()
 print('Chunks:', vs._vectorstore._collection.count())
 "
-
-# 2. Augmenter le nombre de chunks retournés
-# Dans .env : RETRIEVER_K=6  (défaut : 4)
-
-# 3. Ajouter plus de documents dans data/docs/ et réindexer
-```
-
----
-
-### ChromaDB — `sqlite3.OperationalError: no such column: collections.topic`
-
-La base a été créée avec une version ancienne de ChromaDB mais le code 0.4.24 requiert la colonne `topic`.
-
-```powershell
-# Corriger le schéma (à faire une seule fois après cet erreur)
-$env:PYTHONPATH = "."
-venv\Scripts\python scripts/_fix_chroma_schema.py
-```
-
-### Agents CrewAI — `UnicodeEncodeError` dans le terminal
-
-Les logs crewAI contiennent des caractères UTF-8 que la console Windows (cp1252) ne supporte pas.
-Ce problème n'affecte **pas** l'interface Streamlit.
-
-```powershell
-# Pour les tests CLI — forcer UTF-8
-$env:PYTHONIOENCODING = "utf-8"
-python scripts/run_crew.py --question "..."
-```
-
-### Agents CrewAI — réponse lente (~5-8 min)
-
-Normal : llama3 (8B) génère lentement sur CPU. Pour accélérer :
-```ini
-# .env — utiliser phi3:mini aussi pour les agents (moins bonne qualité mais 3x plus rapide)
-CREW_LLM_MODEL=phi3:mini
+# Doit afficher ~29 897. Si > 50 000 : doublons → relancer build_index.py --reset
 ```
 
 ---
@@ -674,7 +648,7 @@ CREW_LLM_MODEL=phi3:mini
 | chromadb | 0.4.24 |
 | crewai | 0.28.8 |
 | sentence-transformers | 3.0.1 |
-| streamlit | 1.37.0 |
+| streamlit | 1.58.0 |
 | Ollama | 0.23.3 |
 | Docker | 29.3.0 |
 
@@ -683,8 +657,34 @@ CREW_LLM_MODEL=phi3:mini
 
 ---
 
+## Choix d'architecture — Phase 2
+
+### Pourquoi Python RAG + 1 agent au lieu de 4 agents LLM actifs ?
+
+La vision originale du multi-agents est la suivante : chaque question est traitée par l'agent qui la concerne (Agent Réseau pour pfSense/VPN, Agent Sécurité pour Wazuh/Zabbix, etc.), chacun raisonnant sur sa recherche avant de passer le résultat à un Agent Rapport pour la synthèse finale. C'est architecturalement correct.
+
+**La contrainte réelle : LLM local sur CPU.**
+
+| Architecture | Appels LLM | Temps sur CPU (llama3.2) |
+|-------------|-----------|--------------------------|
+| 4 agents LLM actifs | 4 à 8 appels | 20 à 40 minutes |
+| Python RAG + 1 agent | 1 appel | 3 à 5 minutes |
+
+Avec 4 agents actifs, une question complexe prendrait 20 à 40 minutes — inutilisable en pratique. La spécialisation est donc assurée par du code Python déterministe (filtrage par mots-clés, recherche ciblée par outil dans ChromaDB, re-ranking), et le LLM n'intervient qu'une seule fois pour la synthèse finale.
+
+**La qualité du contexte donné au LLM est identique** : qu'un agent LLM ou du code Python sélectionne les chunks Wazuh, le LLM de synthèse reçoit les mêmes extraits documentaires.
+
+**Ce choix est réversible** : l'architecture est conçue pour que le passage à 4 agents LLM actifs se fasse en remplaçant le retrieval Python par des `CrewAI Agent` avec outils — sans toucher à l'interface ni à la base vectorielle. Il suffit de disposer d'un GPU ou d'une API LLM (GPT-4, Claude) pour que ce soit viable.
+
+---
+
 ## Roadmap
 
-- ~~**Phase 1**~~ ✅ RAG Chat (LangChain + ChromaDB + phi3:mini + Streamlit)
-- ~~**Phase 2**~~ ✅ Agents spécialisés CrewAI (Doc, Réseau, Sécurité, Rapport)
+- ~~**Phase 1**~~ ✅ RAG Chat (LangChain + ChromaDB + llama3.2 + Streamlit)
+- ~~**Phase 2**~~ ✅ Agents spécialisés CrewAI (routage auto + retrieval ciblé + re-ranking)
+- ~~**Phase 2.5**~~ ✅ Qualité & UX — Command Validator (anti-hallucination 3 niveaux) + UI Material icons
 - **Phase 3** — Audit automatisé (Nmap, OWASP ZAP, MobSF) + rapports automatiques
+
+---
+
+> **Nom du projet : InfraBot**

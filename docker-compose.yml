@@ -1,5 +1,5 @@
 # ── docker-compose.yml ────────────────────────────────────────────────────────
-# Orchestre les services du RAG Chatbot.
+# Orchestre les services InfraBot.
 #
 # Services :
 #   app     → Streamlit (interface + pipeline RAG)
@@ -12,7 +12,7 @@
 #
 # Premier lancement avec Ollama :
 #   docker compose up -d ollama
-#   docker compose exec ollama ollama pull llama3   # télécharger le modèle
+#   docker compose exec ollama ollama pull llama3.2  # télécharger le modèle
 #   docker compose up -d app
 
 version: "3.9"
@@ -24,7 +24,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: rag-chatbot-app
+    container_name: infrabot-app
     ports:
       - "8501:8501"       # Accès : http://localhost:8501
     env_file:
@@ -39,6 +39,7 @@ services:
       - ./data/chroma_db:/app/data/chroma_db              # base vectorielle
       - ./data/embedding_cache:/app/data/embedding_cache  # modèle HuggingFace
       - ./data/feedback:/app/data/feedback                # feedbacks utilisateurs
+      - ./data/session:/app/data/session                  # historique conversations
       - ./data/eval:/app/data/eval                        # résultats évaluation
       - ./logs:/app/logs                                  # logs applicatifs
     depends_on:
@@ -56,10 +57,10 @@ services:
   # ── Ollama — LLM local (Llama 3) ────────────────────────────────────────────
   # Optionnel : commenter ce service si tu utilises OpenAI (LLM_PROVIDER=openai)
   ollama:
-    image: ollama/ollama:latest
+    image: ollama/ollama:0.6.8   # épinglé — mettre à jour manuellement après tests
     container_name: rag-ollama
     ports:
-      - "11434:11434"     # API Ollama accessible depuis ta machine
+      - "127.0.0.1:11434:11434"   # API Ollama — localhost uniquement (pas réseau local)
     volumes:
       # Les modèles sont téléchargés une seule fois et persistés ici
       - ollama_models:/root/.ollama

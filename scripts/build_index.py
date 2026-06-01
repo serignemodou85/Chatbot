@@ -59,10 +59,15 @@ def main():
         default=0.92,
         help="Seuil de déduplication des chunks [0,1] (défaut: 0.92)",
     )
+    parser.add_argument(
+        "--force",
+        action="store_true",
+        help="Bypasse la confirmation interactive pour --reset (usage scripté)",
+    )
     args = parser.parse_args()
 
     logger.info("=" * 60)
-    logger.info("INDEXATION DES DOCUMENTS — Phase 1 RAG Chatbot")
+    logger.info("INDEXATION DES DOCUMENTS — InfraBot Phase 1")
     logger.info("=" * 60)
     logger.info(f"Dossier source  : {args.docs_dir}")
     logger.info(f"Base ChromaDB   : {settings.CHROMA_PERSIST_DIR}")
@@ -76,8 +81,16 @@ def main():
     if args.reset:
         import shutil
         if Path(settings.CHROMA_PERSIST_DIR).exists():
+            if not args.force:
+                confirm = input(
+                    f"\n[!] --reset va supprimer DEFINITIVEMENT {settings.CHROMA_PERSIST_DIR}\n"
+                    "Taper 'OUI' pour confirmer : "
+                ).strip()
+                if confirm != "OUI":
+                    logger.info("Operation annulee.")
+                    sys.exit(0)
             shutil.rmtree(settings.CHROMA_PERSIST_DIR)
-            logger.warning("Ancienne base ChromaDB supprimée (--reset)")
+            logger.warning("Ancienne base ChromaDB supprimee (--reset)")
 
     start = time.time()
 

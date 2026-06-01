@@ -135,9 +135,13 @@ class VectorStoreManager:
         if self._vectorstore is None:
             self.load()
 
+        # MMR (Maximum Marginal Relevance) : diversifie les chunks récupérés
+        # pour éviter que tous viennent du même paragraphe/section.
+        # fetch_k = candidats analysés, k = retenus après diversification.
+        effective_k = k or settings.RETRIEVER_K
         return self._vectorstore.as_retriever(
-            search_type="similarity",
-            search_kwargs={"k": k or settings.RETRIEVER_K},
+            search_type="mmr",
+            search_kwargs={"k": effective_k, "fetch_k": effective_k * 4},
         )
 
     def add_documents(self, chunks: List[Document]):
