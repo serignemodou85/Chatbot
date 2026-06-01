@@ -1,6 +1,10 @@
 # ── Secrets ──────────────────────────────────────────────────────────────────
 .env
 
+# ── Documentation locale (ne pas versionner) ─────────────────────────────────
+cours.md
+.claude/
+
 # ── Données volumineuses (utiliser Git LFS si versionnement nécessaire) ──────
 data/chroma_db/
 data/embedding_cache/
