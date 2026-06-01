@@ -344,11 +344,31 @@ Niveau 3 — Présence dans le contexte RAG (fallback)
 - CamelCase technique (`SSHdKeyOnly`, `PublicKeyOnly`)
 - `enable*` composés (`enablesshd`, `enablefirewall`)
 
+**4 niveaux de validation (v2) :**
+
+```
+Niveau 0 — Longueur minimale (60 chars)
+  "conX_Y" (6 chars) → "Réponse insuffisante"
+
+Niveau 1 — Mélange de technologies
+  swanctl + sshd → "Incohérence technologique"
+
+Niveau 2 — Whitelist par technologie (priorité : question > contexte)
+  pfSense → GUI only, SSH → {ssh, sshd, journalctl, sudo, syslog, auth.log…}
+  strongSwan → swanctl, FreeBSD → pfctl
+  Linux → {ip, iptables, systemctl, wazuh-agent, wazuh.conf…}
+
+Niveau 3 — Présence dans le contexte RAG
+  Chaque commande doit apparaître dans les chunks récupérés
+```
+
 **Logs produits :**
 ```
-WARNING [CommandValidator] Commandes absentes du contexte RAG : ['enablesshd', 'sshdkeyonly'] — réponse bloquée.
+WARNING [CommandValidator] Commandes absentes du contexte RAG : ['enablesshd'] — réponse bloquée.
 WARNING [CommandValidator] pfSense (GUI only) — 2 commande(s) CLI bloquée(s) : ['pfctl', 'iptables']
 WARNING [CommandValidator] Mélange technologique — familles : ['ipsec', 'ssh_srv'] — réponse bloquée.
+WARNING [CommandValidator] Réponse trop courte (6 chars) — bloquée.
+DEBUG   [CommandValidator] 3 commande(s) validée(s) [tech=linux] : ['journalctl', 'sudo', 'systemctl']
 ```
 
 ### Exemples de questions pour les agents
@@ -427,6 +447,29 @@ pytest tests/test_phase2.py -v       # Phase 2 agents
 - Validation du prompt RAG (anti-hallucination)
 - Déduplication
 - Routage des agents
+
+### Évaluation 30 questions
+
+```powershell
+venv\Scripts\python scripts\evaluate_30.py
+```
+
+Évalue 30 questions sur 3 niveaux (Étudiant / Admin / Pro) couvrant tous les domaines.
+
+**Résultats obtenus (après Phase 2.5) :**
+
+| Métrique | Valeur |
+|----------|--------|
+| Score global | **28/30 — 93%** |
+| Latence moyenne | 69s / question |
+| Domaines couverts | 28/28 (100% des domaines) |
+| Chunks indexés | 52 269 vecteurs |
+
+| Niveau | Score | Domaines à 100% |
+|--------|-------|-----------------|
+| 🎓 Étudiant | 9/10 | pfSense, VPN, AD, Zabbix, Wazuh, FIM, Dolibarr, Linux, Windows |
+| 🖥️ Admin système | 10/10 | pfSense, SSH, Zabbix, Windows, strongSwan, OpenVPN, Wazuh, Dolibarr, systemd |
+| 🔒 Pro cybersécurité | 9/10 | MITRE, strongSwan NO_PROPOSAL, Windows privesc, C2, FIM, pfSense logs, RDP, Wazuh |
 
 ### Évaluation de la qualité RAG
 
@@ -633,7 +676,7 @@ from src.ingestion.vectorstore import VectorStoreManager
 vs = VectorStoreManager(); vs.load()
 print('Chunks:', vs._vectorstore._collection.count())
 "
-# Doit afficher ~29 897. Si > 50 000 : doublons → relancer build_index.py --reset
+# Doit afficher ~52 269. Si > 80 000 : doublons → relancer build_index.py --reset
 ```
 
 ---
@@ -682,7 +725,7 @@ Avec 4 agents actifs, une question complexe prendrait 20 à 40 minutes — inuti
 
 - ~~**Phase 1**~~ ✅ RAG Chat (LangChain + ChromaDB + llama3.2 + Streamlit)
 - ~~**Phase 2**~~ ✅ Agents spécialisés CrewAI (routage auto + retrieval ciblé + re-ranking)
-- ~~**Phase 2.5**~~ ✅ Qualité & UX — Command Validator (anti-hallucination 3 niveaux) + UI Material icons
+- ~~**Phase 2.5**~~ ✅ Qualité & UX — Command Validator (4 niveaux) + UI Material icons + corpus 148 fichiers / 52 269 vecteurs — **93% sur 30 questions**
 - **Phase 3** — Audit automatisé (Nmap, OWASP ZAP, MobSF) + rapports automatiques
 
 ---

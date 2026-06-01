@@ -20,10 +20,14 @@ _PFSENSE_WHITELIST: frozenset[str] = frozenset()
 _SSH_WHITELIST: frozenset[str] = frozenset({
     "ssh", "scp", "sftp", "sshd",
     "ssh-keygen", "ssh-copy-id", "ssh-add", "ssh-agent",
-    "journalctl",   # diagnostic sshd via journald
-    "systemctl",    # start/stop sshd
+    "journalctl",                   # diagnostic sshd via journald
+    "systemctl",                    # start/stop sshd
+    "sudo",                         # édition fichiers system
     "grep", "cat", "tail", "less",  # lecture des logs
     "vi", "nano", "vim",            # édition sshd_config
+    "awk", "sed", "head",           # traitement logs
+    # Fichiers de logs SSH courants (noms extraits des chemins)
+    "syslog", "auth.log", "secure", "messages",
 })
 
 # strongSwan — token racine "swanctl" couvre toutes les sous-commandes
@@ -48,6 +52,10 @@ _LINUX_WHITELIST: frozenset[str] = frozenset({
     "ping", "traceroute", "netstat", "ss", "tcpdump", "nmap",
     "firewall-cmd", "ufw",
     "adduser", "useradd", "usermod", "passwd", "groupadd",
+    "wazuh-agent", "wazuh-control", "wazuh-agentd", "ossec-control",
+    # Noms de fichiers de config courants (vérifiés sans le chemin complet)
+    "wazuh.conf", "ossec.conf", "sshd_config", "ssh_config", "sudoers",
+    "zabbix_agent2.conf", "zabbix_agentd.conf", "zabbix_server.conf",
     "mount", "umount", "df", "du", "lsblk",
     "tar", "gzip", "zip", "unzip",
     "python", "python3", "bash", "sh",
@@ -94,6 +102,19 @@ def _detect_tech(text: str) -> str | None:
         if any(kw in t for kw in keywords):
             return tech
     return None
+
+
+def _detect_tech_priority(question: str, context: str) -> str | None:
+    """
+    Détecte la technologie en donnant la PRIORITÉ à la question.
+    Évite qu'un contexte pfSense override une question explicitement Linux.
+    """
+    # 1. La question seule (priorité maximale)
+    tech_from_q = _detect_tech(question)
+    if tech_from_q:
+        return tech_from_q
+    # 2. Contexte en fallback
+    return _detect_tech(context)
 
 
 # ── Détection du mélange de technologies ─────────────────────────────────────
@@ -170,7 +191,7 @@ _SHORT_MSG = (
 
 # ── Longueur minimale ─────────────────────────────────────────────────────────
 
-_MIN_RESPONSE_CHARS = 80
+_MIN_RESPONSE_CHARS = 60
 
 # Marqueurs indiquant que la réponse est déjà un message du validator
 _VALIDATOR_MARKERS = (
@@ -205,6 +226,9 @@ _IGNORE_TOKENS: frozenset[str] = frozenset({
     "defaultroute", "netmask", "broadcast",
 })
 
+# Un token valide doit contenir au moins un caractère alphanumérique
+_RE_ALNUM = re.compile(r"[a-zA-Z0-9]")
+
 # ── Patterns d'extraction ─────────────────────────────────────────────────────
 
 _RE_CODE_BLOCK  = re.compile(r"```(?:[a-z]*\n?)?([\s\S]+?)```")
@@ -229,14 +253,14 @@ def _extract_command_tokens(text: str) -> set[str]:
             if not line:
                 continue
             first = line.split()[0].lower()
-            if len(first) > 2 and first not in _IGNORE_TOKENS:
+            if len(first) > 2 and first not in _IGNORE_TOKENS and _RE_ALNUM.search(first):
                 tokens.add(first)
 
     # 2. Code inline `commande arg`
     for m in _RE_INLINE_CODE.finditer(text):
         tok = m.group(1).strip()
         first = tok.split()[0].lower()
-        if len(first) > 2 and first not in _IGNORE_TOKENS:
+        if len(first) > 2 and first not in _IGNORE_TOKENS and _RE_ALNUM.search(first):
             tokens.add(first)
 
     # 3. Lignes shell ($, #, >)
@@ -244,7 +268,7 @@ def _extract_command_tokens(text: str) -> set[str]:
         line = m.group(1).strip()
         if line:
             first = line.split()[0].lower()
-            if len(first) > 2:
+            if len(first) > 2 and _RE_ALNUM.search(first):
                 tokens.add(first)
 
     # 4. Tokens *ctl (swanctl, systemctl, pfctl…)
@@ -253,9 +277,10 @@ def _extract_command_tokens(text: str) -> set[str]:
         if tok not in _IGNORE_TOKENS:
             tokens.add(tok)
 
-    # 5. Chemins Unix absolus (/etc/, /bin/…)
+    # 5. Chemins Unix absolus (/etc/, /bin/…) — strip ponctuation finale
     for m in _RE_PATH_TOKEN.finditer(text):
-        tokens.add(m.group(1))
+        tok = m.group(1).rstrip(".,;:!?'\"`")
+        tokens.add(tok)
 
     # 6. sudo <commande>
     for m in _RE_SUDO.finditer(text):
@@ -319,7 +344,7 @@ def validate_commands(response: str, context: str, question: str = "") -> str:
         return _MIXING_MSG
 
     # ── Niveau 2 : whitelist par technologie ─────────────────────────────────
-    tech = _detect_tech(question + " " + context)
+    tech = _detect_tech_priority(question, context)
 
     if tech == "pfsense":
         logger.warning(
@@ -335,8 +360,9 @@ def validate_commands(response: str, context: str, question: str = "") -> str:
             t for t in sorted(tokens)
             if t not in whitelist
             and t not in ctx_lower
-            # Pour les chemins /etc/ssh/sshd_config → vérifier aussi "sshd_config"
             and t.split("/")[-1] not in ctx_lower
+            # Fichiers de config connus (ex: wazuh.conf dans /etc/wazuh/wazuh.conf)
+            and t.split("/")[-1] not in whitelist
         ]
         if out_of_whitelist:
             logger.warning(
