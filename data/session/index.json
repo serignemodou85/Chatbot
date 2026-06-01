@@ -1,0 +1,20 @@
+[
+  {
+    "id": "conv_20260601_140758_814601",
+    "title": "Qu’est‑ce qu’un utilisateur Active Directory …",
+    "created_at": "2026-06-01T14:07:58.814601+00:00",
+    "updated_at": "2026-06-01T17:59:26.619077+00:00",
+    "message_count": 3,
+    "archived": false,
+    "pinned": false
+  },
+  {
+    "id": "conv_20260601_122711_947971",
+    "title": "Comment configurer une règle firewall permett…",
+    "created_at": "2026-06-01T12:27:11.947971+00:00",
+    "updated_at": "2026-06-01T12:30:08.605906+00:00",
+    "message_count": 3,
+    "archived": false,
+    "pinned": false
+  }
+]

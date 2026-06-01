@@ -1,0 +1,22 @@
+[
+  {
+    "question": "A quoi sert Wazuh dans une architecture securite ?",
+    "expected_keywords": ["wazuh", "siem", "xdr", "terminaux"],
+    "min_keyword_ratio": 0.75
+  },
+  {
+    "question": "Quelle est la premiere etape pour configurer OpenVPN dans pfSense ?",
+    "expected_keywords": ["openvpn", "pfsense", "vpn", "serveur"],
+    "min_keyword_ratio": 0.5
+  },
+  {
+    "question": "Comment configurer un agent Zabbix pour monitorer un serveur Linux ?",
+    "expected_keywords": ["zabbix", "agent", "configuration", "serveur"],
+    "min_keyword_ratio": 0.5
+  },
+  {
+    "question": "Comment creer un utilisateur et definir ses droits dans Dolibarr ?",
+    "expected_keywords": ["dolibarr", "utilisateur", "permissions", "groupes"],
+    "min_keyword_ratio": 0.5
+  }
+]

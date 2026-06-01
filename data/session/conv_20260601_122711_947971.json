@@ -1,0 +1,23 @@
+[
+  {
+    "role": "assistant",
+    "content": "Bonjour ! Je suis **InfraBot**, votre assistant cybersécurité.\n\nJe peux vous aider sur :\n- 🔥 Configuration de pare-feux et VPN (pfSense, OpenVPN, IPSec)\n- 📊 Supervision avec Zabbix et Wazuh\n- 🐧 Administration Linux / Windows Server\n- 🔍 Analyse de logs et détection d'incidents\n- 🏢 Gestion ERP avec Dolibarr\n\nPour les questions complexes (comparaisons, déploiement, audit), je mobilise automatiquement des **agents spécialisés**.\n\nQuelle est votre question ?",
+    "msg_type": "welcome",
+    "sources": []
+  },
+  {
+    "role": "user",
+    "content": "Comment configurer une règle firewall permettant l’accès SSH uniquement depuis une plage IP spécifique tout en évitant le spoofing IP?",
+    "sources": []
+  },
+  {
+    "role": "assistant",
+    "content": "**Information absente du contexte.**\n\nLa documentation disponible ne contient pas les informations nécessaires pour répondre à cette question avec des commandes vérifiées. Aucune commande ne peut être fournie sans risque d'erreur.",
+    "sources": [],
+    "msg_type": "agents",
+    "domains": [
+      "network",
+      "security"
+    ]
+  }
+]

@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Rapport d'évaluation RAG — InfraBot</title>
+<style>
+  @media print { body { font-size: 11pt; } .no-print { display:none; } }
+  body { font-family: 'Segoe UI', Arial, sans-serif; max-width: 960px; margin: 40px auto;
+         padding: 0 24px; color: #111827; background: #fff; }
+  h1   { font-size: 1.6em; margin-bottom: 4px; }
+  .sub { color: #6b7280; font-size: 0.9em; margin-bottom: 32px; }
+  .cards { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 32px; }
+  .card { background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px;
+           padding: 16px 20px; min-width: 160px; flex: 1; }
+  .card .val { font-size: 2em; font-weight: 700; }
+  .card .lbl { font-size: 0.82em; color: #6b7280; margin-top: 2px; }
+  .badge { display: inline-block; padding: 6px 16px; border-radius: 20px;
+            color: #fff; font-weight: 600; background: #16a34a; margin-bottom: 28px; }
+  table { width: 100%; border-collapse: collapse; font-size: 0.9em; }
+  th    { background: #1e3a5f; color: #fff; padding: 10px 14px; text-align: left; }
+  td    { padding: 8px 14px; border-bottom: 1px solid #e5e7eb; vertical-align: top; }
+  tr:hover td { background: #f0f9ff; }
+  .footer { margin-top: 40px; font-size: 0.8em; color: #9ca3af; text-align: center; }
+</style>
+</head>
+<body>
+<h1>🛡️ InfraBot — Rapport d'évaluation RAG</h1>
+<div class="sub">Généré le 01/06/2026 à 16h15 · Mode : 🖥️ Admin système · Objectif : 80%</div>
+
+<div class="cards">
+  <div class="card">
+    <div class="val">4/4</div>
+    <div class="lbl">Questions pertinentes</div>
+  </div>
+  <div class="card">
+    <div class="val">100.0%</div>
+    <div class="lbl">Taux de pertinence</div>
+  </div>
+  <div class="card">
+    <div class="val">56.2s</div>
+    <div class="lbl">Latence moyenne</div>
+  </div>
+</div>
+
+<div class="badge">✓ Objectif atteint</div>
+
+<table>
+  <thead>
+    <tr>
+      <th style="width:40px"></th>
+      <th>Question</th>
+      <th style="width:110px">Mots-clés</th>
+      <th style="width:90px">Sources</th>
+      <th style="width:70px">Latence</th>
+    </tr>
+  </thead>
+  <tbody>
+        <tr>
+          <td style="color:#16a34a;font-weight:bold;text-align:center">✓</td>
+          <td>Q1 — A quoi sert Wazuh dans une architecture securite ?</td>
+          <td style="text-align:center">100%<br><small style="color:#6b7280">['wazuh', 'siem', 'xdr', 'terminaux']</small></td>
+          <td style="text-align:center">100%</td>
+          <td style="text-align:center">59.56s</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td colspan="4" style="background:#f8fafc;padding:8px 12px;font-size:0.85em;color:#374151;border-left:3px solid #e5e7eb">
+            Wazuh est une plateforme de sécurité offrant une protection XDR et SIEM unifiée pour les terminaux et les charges de travail cloud. L'agent Wazuh est un composant multiplateforme de la solution Wazuh ...
+          </td>
+        </tr>
+        <tr>
+          <td style="color:#16a34a;font-weight:bold;text-align:center">✓</td>
+          <td>Q2 — Quelle est la premiere etape pour configurer OpenVPN dans pfSense ?</td>
+          <td style="text-align:center">75%<br><small style="color:#6b7280">['openvpn', 'pfsense', 'vpn']</small></td>
+          <td style="text-align:center">100%</td>
+          <td style="text-align:center">55.68s</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td colspan="4" style="background:#f8fafc;padding:8px 12px;font-size:0.85em;color:#374151;border-left:3px solid #e5e7eb">
+            La première étape pour configurer OpenVPN dans pfSense est de cliquer sur l'onglet "OpenVPN" dans le menu VPN, puis de cliquer sur "Save".
+          </td>
+        </tr>
+        <tr>
+          <td style="color:#16a34a;font-weight:bold;text-align:center">✓</td>
+          <td>Q3 — Comment configurer un agent Zabbix pour monitorer un serveur Linux ?</td>
+          <td style="text-align:center">75%<br><small style="color:#6b7280">['zabbix', 'agent', 'configuration']</small></td>
+          <td style="text-align:center">100%</td>
+          <td style="text-align:center">55.2s</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td colspan="4" style="background:#f8fafc;padding:8px 12px;font-size:0.85em;color:#374151;border-left:3px solid #e5e7eb">
+            1. OpentheZabbixagentconfigurationfile(defaultpath: /etc/zabbix/zabbix_agent2.conf ):<br>sudo vi /etc/zabbix/zabbix_agent2.conf<br>2. SettheServerparameterto127.0.0.1,sincetheagentandserverarerunningonthesa...
+          </td>
+        </tr>
+        <tr>
+          <td style="color:#16a34a;font-weight:bold;text-align:center">✓</td>
+          <td>Q4 — Comment creer un utilisateur et definir ses droits dans Dolibarr ?</td>
+          <td style="text-align:center">75%<br><small style="color:#6b7280">['utilisateur', 'permissions', 'groupes']</small></td>
+          <td style="text-align:center">100%</td>
+          <td style="text-align:center">54.39s</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td colspan="4" style="background:#f8fafc;padding:8px 12px;font-size:0.85em;color:#374151;border-left:3px solid #e5e7eb">
+            Créer un utilisateur interne ou externe :<br><br>- Pour créer un utilisateur interne, aller dans le menu Accueil -&gt; Utilisateurs & groupes -&gt; Nouvel utilisateur.<br>- Pour créer un utilisateur externe, aller s...
+          </td>
+        </tr></tbody>
+</table>
+
+<div class="footer">InfraBot RAG Chatbot · Phase 1 + Phase 2 · LangChain + ChromaDB + llama3.2 + CrewAI</div>
+</body>
+</html>
