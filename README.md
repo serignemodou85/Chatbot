@@ -42,7 +42,7 @@ Chatbot IA spécialisé en cybersécurité, infrastructure réseau et administra
 ### Étape 1 — Cloner le projet
 
 ```powershell
-git clone https://github.com/tellofall/rag_chatbot.git
+git clone https://github.com/serignemodou85/Chatbot.git
 cd rag_chatbot
 ```
 
