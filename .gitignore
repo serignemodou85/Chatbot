@@ -4,12 +4,22 @@
 # ── Documentation locale (ne pas versionner) ─────────────────────────────────
 cours.md
 .claude/
+Presentation_*.pdf
+Presentation*.md
+Presentation*.pdf
 
 # ── Données volumineuses (utiliser Git LFS si versionnement nécessaire) ──────
+data
 data/chroma_db/
 data/embedding_cache/
 data/feedback/
+data/session/
+data/eval/
 data/eval/last_report.json
+scripts/generate_oral_pdf.py
+scripts/generate_oral_pdf.pyc
+scripts/generate_qrcode.py
+qrcode_stand.png
 
 # Documents source (ajouter manuellement ou via DVC si voulu)
 data/docs/

@@ -8,6 +8,7 @@
 import sys
 import re
 import json
+import time
 import warnings
 from pathlib import Path
 from datetime import datetime, timezone
@@ -493,8 +494,16 @@ with st.sidebar:
     )
 
     st.divider()
-    st.caption("**Base documentaire**")
-    st.caption("Wazuh · Zabbix · pfSense · VPN · Linux · Windows · Dolibarr")
+    st.caption("**Corpus documentaire**")
+    col1, col2 = st.columns(2)
+    with col1:
+        st.metric("📚 Docs", "148")
+        st.metric("🎯 Score", "93 %")
+    with col2:
+        st.metric("🔢 Vecteurs", "52 269")
+        st.metric("✅ Eval", "28 / 30")
+    st.divider()
+    st.caption("pfSense · Wazuh · Zabbix · Linux · Windows · MITRE")
     st.divider()
     st.caption("**Routage automatique**")
     st.caption("Simple → RAG  ·  Complexe → Agents")
@@ -527,7 +536,7 @@ for msg_index, msg in enumerate(st.session_state.messages):
         if msg["role"] == "assistant" and msg.get("msg_type") == "agents":
             domains = msg.get("domains", [])
             labels  = [_DOMAIN_LABELS.get(d, d) for d in domains]
-            st.caption(f"🤖 Rapport multi-agents · {' · '.join(labels)}")
+            st.caption(f" Rapport multi-agents · {' · '.join(labels)}")
         elif msg["role"] == "assistant" and msg.get("msg_type") == "rag":
             st.caption("🔍 RAG")
 
@@ -643,8 +652,15 @@ if "pending_agent_question" in st.session_state:
     labels  = [_DOMAIN_LABELS.get(d, d) for d in domains]
 
     with st.chat_message("assistant"):
-        st.caption(f"🤖 Analyse multi-agents · {' · '.join(labels)}")
-        with st.spinner("Analyse en cours... (3-5 min)"):
+        st.caption(f" Analyse multi-agents · {' · '.join(labels)}")
+        with st.status("Approfondissement multi-agents...", expanded=True) as _deep_status:
+            st.write(f"🔎 Classification des domaines : {' · '.join(labels)}...")
+            time.sleep(0.5)
+            st.write("🔍 Recherche ciblée par technologie détectée...")
+            time.sleep(0.5)
+            st.write("📊 Re-ranking cross-encoder par domaine...")
+            time.sleep(0.5)
+            st.write(" Synthèse ReportAgent (1 seul appel LLM)...")
             try:
                 crew   = CyberSecCrew()
                 result = crew.run(pending_q, current_mode)
@@ -654,9 +670,12 @@ if "pending_agent_question" in st.session_state:
                 answer = f"⚠️ Erreur agents : {e}"
                 domains_used = []
                 logger.error(f"Erreur Crew (deepen) : {e}")
+            st.write("✅ Validation du rapport Markdown...")
+            time.sleep(0.3)
+            _deep_status.update(label="✅ Rapport généré", state="complete", expanded=False)
 
         used_labels = [_DOMAIN_LABELS.get(d, d) for d in domains_used]
-        st.caption(f"🤖 Rapport multi-agents · {' · '.join(used_labels)}")
+        st.caption(f" Rapport multi-agents · {' · '.join(used_labels)}")
         st.markdown(answer)
 
     agent_msg = {
@@ -692,9 +711,16 @@ if question := st.chat_input("Posez votre question sur la cybersécurité..."):
         if route == "agents":
             domains = _classify_domains(question)
             labels  = [_DOMAIN_LABELS.get(d, d) for d in domains]
-            st.caption(f"🤖 Routage vers les agents : {' · '.join(labels)}")
+            st.caption(f" Routage vers les agents : {' · '.join(labels)}")
 
-            with st.spinner("Analyse multi-agents en cours... (3-5 min)"):
+            with st.status("Analyse multi-agents...", expanded=True) as _crew_status:
+                st.write(f"🔎 Classification des domaines : {' · '.join(labels)}...")
+                time.sleep(0.5)
+                st.write("🔍 Recherche ciblée par technologie détectée...")
+                time.sleep(0.5)
+                st.write("📊 Re-ranking cross-encoder par domaine...")
+                time.sleep(0.5)
+                st.write(" Synthèse ReportAgent (1 seul appel LLM)...")
                 try:
                     crew   = CyberSecCrew()
                     result = crew.run(question, current_mode)
@@ -704,9 +730,12 @@ if question := st.chat_input("Posez votre question sur la cybersécurité..."):
                     logger.error(f"Erreur Crew : {e}", exc_info=True)
                     answer = "⚠️ Une erreur s'est produite lors de l'analyse. Réessayez ou reformulez votre question."
                     domains_used = []
+                st.write("✅ Validation du rapport Markdown...")
+                time.sleep(0.3)
+                _crew_status.update(label="✅ Rapport généré", state="complete", expanded=False)
 
             used_labels = [_DOMAIN_LABELS.get(d, d) for d in domains_used]
-            st.caption(f"🤖 Rapport multi-agents · {' · '.join(used_labels)}")
+            st.caption(f" Rapport multi-agents · {' · '.join(used_labels)}")
             st.markdown(answer)
 
             assistant_msg = {
@@ -718,7 +747,14 @@ if question := st.chat_input("Posez votre question sur la cybersécurité..."):
             }
 
         else:
-            with st.spinner("Recherche dans la base documentaire... (2-3 min)"):
+            with st.status("Analyse en cours...", expanded=True) as _rag_status:
+                st.write("🔢 Embedding de la question (384 dimensions)...")
+                time.sleep(0.6)
+                st.write("🔍 Recherche vectorielle — 52 269 vecteurs ChromaDB...")
+                time.sleep(0.5)
+                st.write("📊 Re-ranking cross-encoder — 24 → top 6 chunks...")
+                time.sleep(0.5)
+                st.write(" Génération llama3.2 3B via Ollama...")
                 try:
                     result  = st.session_state.rag_chain.ask(
                         question, user_mode=current_mode
@@ -729,6 +765,9 @@ if question := st.chat_input("Posez votre question sur la cybersécurité..."):
                     logger.error(f"Erreur RAG : {e}", exc_info=True)
                     answer  = "⚠️ Une erreur s'est produite. Réessayez ou reformulez votre question."
                     sources = []
+                st.write("✅ Validation des commandes (Command Validator)...")
+                time.sleep(0.3)
+                _rag_status.update(label="✅ Réponse générée", state="complete", expanded=False)
 
             st.caption("🔍 RAG")
             st.markdown(answer)

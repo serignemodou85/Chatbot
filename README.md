@@ -42,7 +42,7 @@ Chatbot IA spécialisé en cybersécurité, infrastructure réseau et administra
 ### Étape 1 — Cloner le projet
 
 ```powershell
-git clone https://github.com/VOTRE_USERNAME/VOTRE_REPO.git
+git clone https://github.com/tellofall/rag_chatbot.git
 cd rag_chatbot
 ```
 
@@ -535,7 +535,6 @@ rag_chatbot/
 ├── docker-compose.yml      ← Services : app + ollama + indexer
 ├── requirements.txt        ← Dépendances Python (Phase 1 + 2)
 ├── run.bat                 ← Lancement Windows (contourne Device Guard)
-├── cours.md                ← Guide d'apprentissage de la stack
 │
 ├── config/
 │   └── settings.py         ← Chargement centralisé du .env
@@ -574,7 +573,7 @@ rag_chatbot/
 │
 └── data/                       ← Ignoré par git
     ├── docs/                   ← 21 documents source (PDFs)
-    ├── chroma_db/              ← Base vectorielle (~29 897 vecteurs)
+    ├── chroma_db/              ← Base vectorielle (~52 269 vecteurs)
     ├── embedding_cache/        ← Modèle HuggingFace all-MiniLM-L6-v2 (cache)
     ├── feedback/               ← Feedbacks utilisateurs (JSON)
     ├── session/                ← Historique conversations (JSON)
