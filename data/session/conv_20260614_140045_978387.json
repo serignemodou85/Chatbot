@@ -1,8 +1,0 @@
-[
-  {
-    "role": "assistant",
-    "content": "Bonjour ! Je suis **InfraBot**, votre assistant cybersécurité.\n\nJe peux vous aider sur :\n- 🔥 Configuration de pare-feux et VPN (pfSense, OpenVPN, IPSec)\n- 📊 Supervision avec Zabbix et Wazuh\n- 🐧 Administration Linux / Windows Server\n- 🔍 Analyse de logs et détection d'incidents\n- 🏢 Gestion ERP avec Dolibarr\n\nPour les questions complexes (comparaisons, déploiement, audit), je mobilise automatiquement des **agents spécialisés**.\n\nQuelle est votre question ?",
-    "msg_type": "welcome",
-    "sources": []
-  }
-]
